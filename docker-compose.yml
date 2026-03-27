@@ -1,0 +1,8 @@
+services:
+  cubrid:
+    image: cubrid/cubrid:11.4
+    container_name: cubrid-test
+    environment:
+      CUBRID_DB: testdb
+    ports:
+      - "33000:33000"

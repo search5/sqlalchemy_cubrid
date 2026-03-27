@@ -1,0 +1,46 @@
+[tool.poetry]
+name = "sqlalchemy-cubrid"
+version = "0.1.0.dev1"
+description = "Cubrid dialect for SQLAlchemy"
+authors = [
+    "Yeongseon Choe <yeongseon.choe@gmail.com>",
+    "Gyeongjun Paik <paikend@gmail.com>",
+    "Andrew Ji-ho Lee <search5@gmail.com>",
+]
+license = "MIT"
+readme = "README.md"
+keywords = ["SQLAlchemy", "Cubrid"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Environment :: Console",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python",
+    "Programming Language :: Python :: 3.9",
+]
+packages = [{ include = "sqlalchemy_cubrid" }]
+
+[tool.poetry.dependencies]
+python = "^3.9"
+sqlalchemy = ">=2.0"
+# CUBRID-Python (CUBRIDdb) — official driver (C extension)
+# Latest version not on PyPI; install wheel from FTP:
+# pip install http://ftp.cubrid.org/CUBRID_Drivers/Python_Driver/11.3.0/Linux/cubrid_python-11.3.0.51-cp312-cp312-linux_x86_64.whl
+
+[tool.poetry.group.dev.dependencies]
+pytest = ">=2.5.2"
+
+[tool.poetry.plugins."sqlalchemy.dialects"]
+cubrid = "sqlalchemy_cubrid.dialect:CubridDialect"
+
+[tool.black]
+line-length = 79
+target-version = ["py39"]
+
+[tool.pytest.ini_options]
+addopts = "--tb native -v -r fxX"
+python_files = "tests/test_*.py"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
