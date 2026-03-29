@@ -5,6 +5,7 @@
 # This module is part of sqlalchemy-cubrid and is released under
 # the MIT License: http://www.opensource.org/licenses/mit-license.php
 
+import json
 import re
 
 from sqlalchemy import text
@@ -18,9 +19,17 @@ from sqlalchemy_cubrid.compiler import CubridTypeCompiler
 
 class CubridDialect(default.DefaultDialect):
     name = "cubrid"
-    driver = "CUBRIDdb"
+    driver = "pycubrid"
 
     supports_statement_cache = True
+
+    # CUBRID supports SERIAL (equivalent to SQL SEQUENCE)
+    supports_sequences = True
+    sequences_optional = False
+    default_sequence_base = 1
+
+    # CUBRID supports savepoints but not RELEASE SAVEPOINT
+    supports_savepoints = True
 
     # CUBRID does not support RETURNING clause (per official docs)
     insert_returning = False
@@ -29,6 +38,20 @@ class CubridDialect(default.DefaultDialect):
 
     # CUBRID uses '?' as parameter placeholder (qmark style)
     default_paramstyle = "qmark"
+
+    # pycubrid returns Decimal natively for NUMERIC columns
+    supports_native_decimal = True
+
+    # JSON serialization
+    _json_serializer = staticmethod(json.dumps)
+    _json_deserializer = staticmethod(json.loads)
+
+    def __init__(self, json_serializer=None, json_deserializer=None, **kwargs):
+        super().__init__(**kwargs)
+        if json_serializer is not None:
+            self._json_serializer = json_serializer
+        if json_deserializer is not None:
+            self._json_deserializer = json_deserializer
 
     statement_compiler = CubridCompiler
     ddl_compiler = CubridDDLCompiler
@@ -39,32 +62,73 @@ class CubridDialect(default.DefaultDialect):
 
     @classmethod
     def import_dbapi(cls):
-        import CUBRIDdb
+        import pycubrid
 
-        return CUBRIDdb
+        return pycubrid
 
     def create_connect_args(self, url):
         opts = url.translate_connect_args(
             host="host",
             port="port",
             database="database",
-            username="username",
+            username="user",
             password="password",
         )
         opts.update(url.query)
 
-        host = opts.get("host", "localhost")
-        port = opts.get("port", 33000)
-        database = opts.get("database", "")
-        username = opts.get("username", "")
-        password = opts.get("password", "")
+        # pycubrid uses keyword arguments for connect()
+        connect_args = {
+            "host": opts.get("host", "localhost"),
+            "port": int(opts.get("port", 33000)),
+            "database": opts.get("database", ""),
+            "user": opts.get("user", "dba"),
+            "password": opts.get("password", ""),
+        }
 
-        dsn = f"CUBRID:{host}:{port}:{database}:::"
+        return ([], connect_args)
 
-        return ([dsn, username, password], {})
+    def do_release_savepoint(self, connection, name):
+        # CUBRID does not support RELEASE SAVEPOINT — silently skip
+        pass
 
     def initialize(self, connection):
         super().initialize(connection)
+        # Cache server version for version-conditional logic
+        self._cubrid_version = self.server_version_info or (0,)
+
+    @property
+    def _serial_attr_column(self):
+        """Column name for the attribute reference in db_serial.
+
+        Renamed from att_name to attr_name in CUBRID 11.4.
+        """
+        if self._cubrid_version >= (11, 4):
+            return "attr_name"
+        return "att_name"
+
+    def _has_object(self, connection, name):
+        """Check if a table or view exists."""
+        result = connection.execute(
+            text(
+                "SELECT COUNT(*) FROM db_class "
+                "WHERE class_name = :name "
+                "AND is_system_class = 'NO'"
+            ),
+            {"name": name.lower()},
+        )
+        return result.scalar() > 0
+
+    def _is_view(self, connection, view_name):
+        result = connection.execute(
+            text(
+                "SELECT COUNT(*) FROM db_class "
+                "WHERE class_name = :name "
+                "AND is_system_class = 'NO' "
+                "AND class_type = 'VCLASS'"
+            ),
+            {"name": view_name.lower()},
+        )
+        return result.scalar() > 0
 
     def has_table(self, connection, table_name, schema=None, **kw):
         result = connection.execute(
@@ -103,7 +167,9 @@ class CubridDialect(default.DefaultDialect):
             "SHORT": sqltypes.SMALLINT,
             "SMALLINT": sqltypes.SMALLINT,
             "FLOAT": sqltypes.FLOAT,
-            "DOUBLE": sqltypes.FLOAT,
+            "REAL": sqltypes.FLOAT,
+            "DOUBLE": sqltypes.DOUBLE,
+            "DOUBLE PRECISION": sqltypes.DOUBLE,
             "NUMERIC": sqltypes.NUMERIC,
             "DECIMAL": sqltypes.NUMERIC,
             "STRING": sqltypes.VARCHAR,
@@ -115,10 +181,24 @@ class CubridDialect(default.DefaultDialect):
             "TIME": sqltypes.TIME,
             "DATETIME": sqltypes.DATETIME,
             "TIMESTAMP": sqltypes.TIMESTAMP,
+            "DATETIMELTZ": sqltypes.DATETIME,
+            "DATETIMETZ": sqltypes.DATETIME,
+            "TIMESTAMPLTZ": sqltypes.TIMESTAMP,
+            "TIMESTAMPTZ": sqltypes.TIMESTAMP,
             "BLOB": sqltypes.BLOB,
             "CLOB": sqltypes.CLOB,
             "BIT": sqltypes.LargeBinary,
             "BIT VARYING": sqltypes.LargeBinary,
+            "ENUM": sqltypes.Enum,
+            "JSON": sqltypes.JSON,
+            "SET": sqltypes.NullType,
+            "SET_OF": sqltypes.NullType,
+            "MULTISET": sqltypes.NullType,
+            "MULTISET_OF": sqltypes.NullType,
+            "LIST": sqltypes.NullType,
+            "LIST_OF": sqltypes.NullType,
+            "SEQUENCE": sqltypes.NullType,
+            "SEQUENCE_OF": sqltypes.NullType,
         }
 
     def _resolve_type(self, type_str):
@@ -144,13 +224,29 @@ class CubridDialect(default.DefaultDialect):
             return type_cls(*parts)
         elif params and base_type in ("VARCHAR", "CHARACTER VARYING", "CHAR", "CHARACTER", "STRING"):
             return type_cls(int(params))
+        elif params and base_type == "ENUM":
+            # Parse ENUM('val1','val2',...) values
+            values = re.findall(r"'([^']*)'", params)
+            return type_cls(*values)
+        elif params and base_type in ("FLOAT", "REAL"):
+            return type_cls(precision=int(params))
+        elif params and base_type == "DOUBLE":
+            return type_cls()
+        elif params and base_type in ("BIT", "BIT VARYING"):
+            return type_cls(int(params))
         else:
             return type_cls()
 
     def get_columns(self, connection, table_name, schema=None, **kw):
-        result = connection.execute(
-            text("SHOW COLUMNS FROM " + self.identifier_preparer.quote_identifier(table_name))
-        )
+        try:
+            result = connection.execute(
+                text("SHOW COLUMNS FROM " + self.identifier_preparer.quote_identifier(table_name))
+            )
+        except Exception as e:
+            # SHOW COLUMNS works for both tables and views.
+            # If it fails, the object doesn't exist.
+            from sqlalchemy.exc import NoSuchTableError
+            raise NoSuchTableError(table_name) from e
         columns = []
         for row in result:
             # row: (Field, Type, Null, Key, Default, Extra)
@@ -167,13 +263,16 @@ class CubridDialect(default.DefaultDialect):
                 "name": col_name,
                 "type": col_type,
                 "nullable": nullable,
-                "default": repr(default) if default is not None else None,
+                "default": str(default) if default is not None else None,
                 "autoincrement": autoincrement,
             }
             columns.append(col_info)
         return columns
 
     def get_pk_constraint(self, connection, table_name, schema=None, **kw):
+        if not self._has_object(connection, table_name):
+            from sqlalchemy.exc import NoSuchTableError
+            raise NoSuchTableError(table_name)
         result = connection.execute(
             text(
                 "SELECT i.index_name, k.key_attr_name, k.key_order "
@@ -197,17 +296,25 @@ class CubridDialect(default.DefaultDialect):
     def get_foreign_keys(self, connection, table_name, schema=None, **kw):
         # CUBRID doesn't expose FK reference info in catalog views,
         # so we parse the DDL from SHOW CREATE TABLE.
-        result = connection.execute(
-            text("SHOW CREATE TABLE " + self.identifier_preparer.quote_identifier(table_name))
-        )
+        # For views, SHOW CREATE TABLE fails — return empty list.
+        try:
+            result = connection.execute(
+                text("SHOW CREATE TABLE " + self.identifier_preparer.quote_identifier(table_name))
+            )
+        except Exception as e:
+            # Check if it's a view — views have no foreign keys
+            if self._is_view(connection, table_name):
+                return []
+            from sqlalchemy.exc import NoSuchTableError
+            raise NoSuchTableError(table_name) from e
         row = result.fetchone()
         if not row:
             return []
 
         ddl = row[1]
         fk_pattern = re.compile(
-            r"CONSTRAINT\s+\[(\w+)\]\s+FOREIGN\s+KEY\s+\(([^)]+)\)\s+"
-            r"REFERENCES\s+\[(?:\w+\.)?(\w+)\]\s+\(([^)]+)\)",
+            r"CONSTRAINT\s+\[([^\]]+)\]\s+FOREIGN\s+KEY\s*\(([^)]+)\)\s+"
+            r"REFERENCES\s+\[(?:[^\]]+\.)?([^\]]+)\]\s*\(([^)]+)\)",
             re.IGNORECASE,
         )
         fks = []
@@ -223,13 +330,50 @@ class CubridDialect(default.DefaultDialect):
                 "referred_table": referred_table,
                 "referred_columns": referred_cols,
             })
+        fks.sort(key=lambda x: x["name"])
         return fks
 
-    def get_indexes(self, connection, table_name, schema=None, **kw):
+    def get_unique_constraints(self, connection, table_name, schema=None, **kw):
+        if not self._has_object(connection, table_name):
+            from sqlalchemy.exc import NoSuchTableError
+            raise NoSuchTableError(table_name)
         result = connection.execute(
             text(
-                "SELECT i.index_name, i.is_unique, i.is_primary_key, "
-                "       k.key_attr_name, k.key_order "
+                "SELECT i.index_name, k.key_attr_name, k.key_order "
+                "FROM db_index i "
+                "JOIN db_index_key k "
+                "  ON i.index_name = k.index_name "
+                "  AND i.class_name = k.class_name "
+                "WHERE i.class_name = :name "
+                "AND i.is_unique = 'YES' "
+                "AND i.is_primary_key = 'NO' "
+                "AND i.is_foreign_key = 'NO' "
+                "ORDER BY i.index_name, k.key_order"
+            ),
+            {"name": table_name.lower()},
+        )
+        constraints = {}
+        for row in result:
+            name = row[0]
+            col = row[1]
+            if name not in constraints:
+                constraints[name] = {
+                    "name": name,
+                    "column_names": [],
+                    "duplicates_index": name,
+                }
+            constraints[name]["column_names"].append(col)
+        return list(constraints.values())
+
+    def get_indexes(self, connection, table_name, schema=None, **kw):
+        if not self._has_object(connection, table_name):
+            from sqlalchemy.exc import NoSuchTableError
+            raise NoSuchTableError(table_name)
+        result = connection.execute(
+            text(
+                "SELECT i.index_name, i.is_unique, "
+                "       i.is_reverse, i.filter_expression, i.have_function, "
+                "       k.key_attr_name, k.key_order, k.asc_desc, k.func "
                 "FROM db_index i "
                 "JOIN db_index_key k "
                 "  ON i.index_name = k.index_name "
@@ -245,20 +389,95 @@ class CubridDialect(default.DefaultDialect):
         for row in result:
             idx_name = row[0]
             is_unique = row[1] == "YES"
-            col_name = row[3]
+            is_reverse = row[2] == "YES"
+            filter_expr = row[3]
+            have_function = row[4] == "YES"
+            col_name = row[5]
+            asc_desc = row[7]  # 'ASC' or 'DESC'
+            func_expr = row[8]
+
             if idx_name not in indexes:
+                dialect_options = {}
+                if is_reverse:
+                    dialect_options["cubrid_reverse"] = True
+                if filter_expr:
+                    dialect_options["cubrid_filtered"] = filter_expr
+                if have_function and func_expr:
+                    dialect_options["cubrid_function"] = func_expr
+
                 indexes[idx_name] = {
                     "name": idx_name,
                     "unique": is_unique,
                     "column_names": [],
+                    "column_sorting": {},
+                    "dialect_options": dialect_options,
                 }
+
             indexes[idx_name]["column_names"].append(col_name)
+            if asc_desc and asc_desc.upper() != "ASC":
+                indexes[idx_name]["column_sorting"][col_name] = (asc_desc.lower(),)
+
         return list(indexes.values())
+
+    def get_view_names(self, connection, schema=None, **kw):
+        result = connection.execute(
+            text(
+                "SELECT class_name FROM db_class "
+                "WHERE is_system_class = 'NO' "
+                "AND class_type = 'VCLASS' "
+                "ORDER BY class_name"
+            )
+        )
+        return [row[0] for row in result]
+
+    def get_view_definition(self, connection, view_name, schema=None, **kw):
+        result = connection.execute(
+            text(
+                "SELECT vclass_def FROM db_vclass "
+                "WHERE vclass_name = :name"
+            ),
+            {"name": view_name.lower()},
+        )
+        row = result.fetchone()
+        if row:
+            return row[0]
+        from sqlalchemy.exc import NoSuchTableError
+        raise NoSuchTableError(view_name)
+
+    def get_sequence_names(self, connection, schema=None, **kw):
+        # Exclude auto-generated serials created for AUTO_INCREMENT columns.
+        # Column renamed: att_name (10.2~11.3) -> attr_name (11.4+)
+        attr_col = self._serial_attr_column
+        result = connection.execute(
+            text(
+                "SELECT name FROM db_serial "
+                "WHERE %s IS NULL "
+                "ORDER BY name" % attr_col
+            )
+        )
+        return [row[0] for row in result]
+
+    def has_sequence(self, connection, sequence_name, schema=None, **kw):
+        attr_col = self._serial_attr_column
+        result = connection.execute(
+            text(
+                "SELECT COUNT(*) FROM db_serial "
+                "WHERE name = :name AND %s IS NULL" % attr_col
+            ),
+            {"name": sequence_name},
+        )
+        return result.scalar() > 0
 
     def _get_server_version_info(self, connection):
         dbapi_conn = connection.connection.dbapi_connection
-        version_str = dbapi_conn.server_version()
-        return tuple(int(x) for x in version_str.split("."))
+        version_str = dbapi_conn.get_server_version()
+        # Extract only numeric parts (handles suffixes like "11.4.0-beta")
+        parts = []
+        for x in version_str.split("."):
+            match = re.match(r"(\d+)", x)
+            if match:
+                parts.append(int(match.group(1)))
+        return tuple(parts) or (0,)
 
 
 dialect = CubridDialect

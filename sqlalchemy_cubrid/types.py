@@ -37,7 +37,7 @@ class _CollectionType(sa_types.UserDefinedType):
         self.element_type = element_type
 
     def get_col_spec(self):
-        return f"{self._collection_keyword} {self.element_type}"
+        return f"{self._collection_keyword}_OF({self.element_type})"
 
     def bind_processor(self, dialect):
         # Python collection -> CUBRID literal string for raw binding
@@ -79,9 +79,12 @@ class CubridMultiset(_CollectionType):
 
 
 class CubridList(_CollectionType):
-    """CUBRID LIST/SEQUENCE type. Ordered, allows duplicates."""
+    """CUBRID LIST/SEQUENCE type. Ordered, allows duplicates.
 
-    _collection_keyword = "LIST"
+    Uses SEQUENCE_OF() DDL syntax (CUBRID does not support LIST_OF).
+    """
+
+    _collection_keyword = "SEQUENCE"
 
     def result_processor(self, dialect, coltype):
         def process(value):

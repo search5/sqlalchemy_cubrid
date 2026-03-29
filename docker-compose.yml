@@ -6,3 +6,35 @@ services:
       CUBRID_DB: testdb
     ports:
       - "33000:33000"
+
+  cubrid-10.2:
+    image: cubrid/cubrid:10.2
+    container_name: cubrid-10.2
+    environment:
+      CUBRID_DB: testdb
+    ports:
+      - "33002:33000"
+
+  cubrid-11.0:
+    image: cubrid/cubrid:11.0
+    container_name: cubrid-11.0
+    environment:
+      CUBRID_DB: testdb
+    ports:
+      - "33100:33000"
+
+  cubrid-11.2:
+    image: cubrid/cubrid:11.2
+    container_name: cubrid-11.2
+    environment:
+      CUBRID_DB: testdb
+    ports:
+      - "33102:33000"
+
+  cubrid-11.3:
+    image: cubrid/cubrid:11.3
+    container_name: cubrid-11.3
+    environment:
+      CUBRID_DB: testdb
+    ports:
+      - "33103:33000"

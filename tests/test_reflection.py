@@ -81,7 +81,7 @@ class TestGetColumns:
         insp = inspect(engine)
         columns = insp.get_columns("t_parent")
         col_map = {c["name"]: c for c in columns}
-        assert col_map["email"]["default"] == "'none'"
+        assert col_map["email"]["default"] == "none"
 
     def test_autoincrement(self, engine):
         insp = inspect(engine)
@@ -163,4 +163,4 @@ class TestGetIndexes:
         indexes = insp.get_indexes("t_parent")
         names = {idx["name"] for idx in indexes}
         for name in names:
-            assert "pk_" not in name.lower() or "primary" not in name.lower()
+            assert "pk_" not in name.lower() and "primary" not in name.lower()

@@ -5,18 +5,16 @@
 # This module is part of sqlalchemy-cubrid and is released under
 # the MIT License: http://www.opensource.org/licenses/mit-license.php
 
-import re
-
 from sqlalchemy.engine import default
 from sqlalchemy.sql import compiler
 
 
-AUTOCOMMIT_REGEXP = re.compile(
-    r"\s*(?:UPDATE|INSERT|CREATE|DELETE|DROP|ALTER|MERGE)", re.I | re.UNICODE
-)
 
-# CUBRID Reserved words (10.2 ~ 11.4)
-# https://www.cubrid.org/manual/ko/11.4/
+# CUBRID Reserved words — union of all supported versions (10.2 ~ 11.4)
+# Source: CUBRID src/parser/keyword.c (flag=0 entries) for each version tag,
+# plus prior version keywords retained for safety (better to over-quote than
+# miss a reserved word on an older server).
+# Core: 349 reserved words in 11.4. Added in 11.2: dblink, server.
 RESERVED_WORDS = {
     "absolute",
     "action",
@@ -39,8 +37,10 @@ RESERVED_WORDS = {
     "attribute",
     "avg",
     "before",
+    "begin",
     "between",
     "bigint",
+    "binary",
     "bit",
     "bit_length",
     "blob",
@@ -92,14 +92,18 @@ RESERVED_WORDS = {
     "cycle",
     "data",
     "data_type",
+    "data_type___",
     "database",
     "date",
     "datetime",
+    "datetimeltz",
+    "datetimetz",
     "day",
     "day_hour",
     "day_millisecond",
     "day_minute",
     "day_second",
+    "dblink",          # reserved since 11.2
     "deallocate",
     "dec",
     "decimal",
@@ -122,12 +126,13 @@ RESERVED_WORDS = {
     "do",
     "domain",
     "double",
-    "duplicate",
     "drop",
+    "duplicate",
     "each",
     "else",
     "elseif",
     "end",
+    "enum",
     "equals",
     "escape",
     "evaluate",
@@ -205,6 +210,7 @@ RESERVED_WORDS = {
     "lower",
     "match",
     "max",
+    "merge",
     "method",
     "millisecond",
     "min",
@@ -251,6 +257,7 @@ RESERVED_WORDS = {
     "overlaps",
     "parameters",
     "partial",
+    "partition",
     "pendant",
     "position",
     "precision",
@@ -293,6 +300,7 @@ RESERVED_WORDS = {
     "savepoint",
     "schema",
     "scope",
+    "scope___",
     "scroll",
     "search",
     "second",
@@ -304,12 +312,15 @@ RESERVED_WORDS = {
     "sequence_of",
     "serial",
     "serializable",
+    "server",           # reserved since 11.2
     "session",
     "session_user",
     "set",
     "set_of",
     "seteq",
+    "setneq",
     "shared",
+    "short",
     "siblings",
     "signal",
     "similar",
@@ -343,6 +354,7 @@ RESERVED_WORDS = {
     "sysdatetime",
     "system_user",
     "systime",
+    "systimestamp",
     "table",
     "temporary",
     "test",
@@ -350,6 +362,8 @@ RESERVED_WORDS = {
     "there",
     "time",
     "timestamp",
+    "timestampltz",
+    "timestamptz",
     "timezone_hour",
     "timezone_minute",
     "to",
@@ -373,6 +387,7 @@ RESERVED_WORDS = {
     "user",
     "using",
     "utime",
+    "vacuum",
     "value",
     "values",
     "varchar",
@@ -415,14 +430,14 @@ class CubridIdentifierPreparer(compiler.IdentifierPreparer):
 
 
 class CubridExecutionContext(default.DefaultExecutionContext):
-    def should_autocommit_text(self, statement):
-        return AUTOCOMMIT_REGEXP.match(statement)
+    def fire_sequence(self, seq, type_):
+        # Pre-execute serial_name.NEXT_VALUE to get the next value
+        return self._execute_scalar(
+            "SELECT %s.NEXT_VALUE" % (
+                self.dialect.identifier_preparer.format_sequence(seq)
+            ),
+            type_,
+        )
 
     def get_lastrowid(self):
-        cursor = self.create_cursor()
-        cursor.execute("SELECT LAST_INSERT_ID()")
-        row = cursor.fetchone()
-        cursor.close()
-        if row:
-            return int(row[0])
-        return None
+        return self.cursor.lastrowid
