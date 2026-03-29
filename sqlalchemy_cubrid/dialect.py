@@ -257,34 +257,34 @@ class CubridDialect(default.DefaultDialect):
             from sqlalchemy import types as sqltypes
             return sqltypes.NullType()
 
-        if params and base_type in ("NUMERIC", "DECIMAL"):
-            parts = [int(x.strip()) for x in params.split(",")]
-            return type_cls(*parts)
-        elif params and base_type in ("VARCHAR", "CHARACTER VARYING", "CHAR", "CHARACTER", "STRING"):
-            return type_cls(int(params))
-        elif params and base_type == "ENUM":
-            # Parse ENUM('val1','val2',...) values
-            values = re.findall(r"'([^']*)'", params)
-            return type_cls(*values)
-        elif params and base_type in ("FLOAT", "REAL"):
-            return type_cls(precision=int(params))
-        elif params and base_type == "DOUBLE":
-            return type_cls()
-        elif params and base_type in ("BIT", "BIT VARYING"):
-            return type_cls(int(params))
-        else:
+        try:
+            if params and base_type in ("NUMERIC", "DECIMAL"):
+                parts = [int(x.strip()) for x in params.split(",")]
+                return type_cls(*parts)
+            elif params and base_type in ("VARCHAR", "CHARACTER VARYING", "CHAR", "CHARACTER", "STRING"):
+                return type_cls(int(params))
+            elif params and base_type == "ENUM":
+                values = re.findall(r"'([^']*)'", params)
+                return type_cls(*values)
+            elif params and base_type in ("FLOAT", "REAL"):
+                return type_cls(precision=int(params))
+            elif params and base_type == "DOUBLE":
+                return type_cls()
+            elif params and base_type in ("BIT", "BIT VARYING"):
+                return type_cls(int(params))
+            else:
+                return type_cls()
+        except (ValueError, TypeError):
             return type_cls()
 
     def get_columns(self, connection, table_name, schema=None, **kw):
+        from sqlalchemy import exc as sa_exc
         try:
             result = connection.execute(
                 text("SHOW COLUMNS FROM " + self.identifier_preparer.quote_identifier(table_name))
             )
-        except Exception as e:
-            # SHOW COLUMNS works for both tables and views.
-            # If it fails, the object doesn't exist.
-            from sqlalchemy.exc import NoSuchTableError
-            raise NoSuchTableError(table_name) from e
+        except (sa_exc.ProgrammingError, sa_exc.DatabaseError) as e:
+            raise sa_exc.NoSuchTableError(table_name) from e
 
         # Fetch column comments from db_attribute catalog
         comment_map = {}
@@ -349,6 +349,7 @@ class CubridDialect(default.DefaultDialect):
         return {"constrained_columns": pk_cols, "name": pk_name}
 
     def get_foreign_keys(self, connection, table_name, schema=None, **kw):
+        from sqlalchemy import exc as sa_exc
         # CUBRID doesn't expose FK reference info in catalog views,
         # so we parse the DDL from SHOW CREATE TABLE.
         # For views, SHOW CREATE TABLE fails — return empty list.
@@ -356,12 +357,11 @@ class CubridDialect(default.DefaultDialect):
             result = connection.execute(
                 text("SHOW CREATE TABLE " + self.identifier_preparer.quote_identifier(table_name))
             )
-        except Exception as e:
-            # Check if it's a view — views have no foreign keys
+        except (sa_exc.ProgrammingError, sa_exc.DatabaseError) as e:
+            # SHOW CREATE TABLE fails for views — views have no foreign keys
             if self._is_view(connection, table_name):
                 return []
-            from sqlalchemy.exc import NoSuchTableError
-            raise NoSuchTableError(table_name) from e
+            raise sa_exc.NoSuchTableError(table_name) from e
         row = result.fetchone()
         if not row:
             return []
