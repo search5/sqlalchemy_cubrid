@@ -88,6 +88,7 @@ class _CollectionType(sa_types.UserDefinedType):
 class CubridSet(_CollectionType):
     """CUBRID SET type. Unordered, no duplicates."""
 
+    cache_ok = True
     _collection_keyword = "SET"
 
     def result_processor(self, dialect, coltype):
@@ -108,6 +109,7 @@ class CubridSet(_CollectionType):
 class CubridMultiset(_CollectionType):
     """CUBRID MULTISET type. Unordered, allows duplicates."""
 
+    cache_ok = True
     _collection_keyword = "MULTISET"
 
     def result_processor(self, dialect, coltype):
@@ -131,6 +133,7 @@ class CubridList(_CollectionType):
     Uses SEQUENCE_OF() DDL syntax (CUBRID does not support LIST_OF).
     """
 
+    cache_ok = True
     _collection_keyword = "SEQUENCE"
 
     def result_processor(self, dialect, coltype):
