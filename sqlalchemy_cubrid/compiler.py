@@ -231,10 +231,13 @@ class CubridTypeCompiler(compiler.GenericTypeCompiler):
         return "BIT VARYING(1073741823)"
 
     def visit_FLOAT(self, type_, **kw):
-        # CUBRID: FLOAT(p>7) → DOUBLE
-        if type_.precision is not None and type_.precision > 7:
-            return "DOUBLE"
-        return "FLOAT"
+        # CUBRID FLOAT = single precision (7 significant digits).
+        # Generic Float() (no precision) maps to DOUBLE for better accuracy.
+        if type_.precision is not None:
+            if type_.precision > 7:
+                return "DOUBLE"
+            return "FLOAT"
+        return "DOUBLE"
 
     def visit_DOUBLE(self, type_, **kw):
         return "DOUBLE"

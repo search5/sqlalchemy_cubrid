@@ -131,6 +131,8 @@ class CubridDialect(default.DefaultDialect):
         return result.scalar() > 0
 
     def has_table(self, connection, table_name, schema=None, **kw):
+        # Pop info_cache so it doesn't propagate to execute()
+        kw.pop("info_cache", None)
         result = connection.execute(
             text(
                 "SELECT COUNT(*) FROM db_class "
@@ -141,6 +143,22 @@ class CubridDialect(default.DefaultDialect):
             {"name": table_name.lower()},
         )
         return result.scalar() > 0
+
+    def has_index(self, connection, table_name, index_name, schema=None, **kw):
+        info_cache = kw.get("info_cache")
+        cache_key = ("get_indexes", schema, table_name)
+        if info_cache is not None and cache_key in info_cache:
+            indexes = info_cache[cache_key]
+        else:
+            try:
+                indexes = self.get_indexes(
+                    connection, table_name, schema=schema, **kw
+                )
+            except Exception:
+                indexes = []
+            if info_cache is not None:
+                info_cache[cache_key] = indexes
+        return any(idx["name"] == index_name for idx in indexes)
 
     def get_table_names(self, connection, schema=None, **kw):
         result = connection.execute(
@@ -366,6 +384,7 @@ class CubridDialect(default.DefaultDialect):
         return list(constraints.values())
 
     def get_indexes(self, connection, table_name, schema=None, **kw):
+        kw.pop("info_cache", None)
         if not self._has_object(connection, table_name):
             from sqlalchemy.exc import NoSuchTableError
             raise NoSuchTableError(table_name)
@@ -445,6 +464,7 @@ class CubridDialect(default.DefaultDialect):
         raise NoSuchTableError(view_name)
 
     def get_sequence_names(self, connection, schema=None, **kw):
+        kw.pop("info_cache", None)
         # Exclude auto-generated serials created for AUTO_INCREMENT columns.
         # Column renamed: att_name (10.2~11.3) -> attr_name (11.4+)
         attr_col = self._serial_attr_column
@@ -458,15 +478,17 @@ class CubridDialect(default.DefaultDialect):
         return [row[0] for row in result]
 
     def has_sequence(self, connection, sequence_name, schema=None, **kw):
-        attr_col = self._serial_attr_column
-        result = connection.execute(
-            text(
-                "SELECT COUNT(*) FROM db_serial "
-                "WHERE name = :name AND %s IS NULL" % attr_col
-            ),
-            {"name": sequence_name},
-        )
-        return result.scalar() > 0
+        info_cache = kw.get("info_cache")
+        cache_key = ("get_sequence_names", schema)
+        if info_cache is not None and cache_key in info_cache:
+            seq_names = info_cache[cache_key]
+        else:
+            seq_names = self.get_sequence_names(
+                connection, schema=schema, **kw
+            )
+            if info_cache is not None:
+                info_cache[cache_key] = seq_names
+        return sequence_name in seq_names
 
     def _get_server_version_info(self, connection):
         dbapi_conn = connection.connection.dbapi_connection
