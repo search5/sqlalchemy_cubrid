@@ -40,12 +40,49 @@ class _CollectionType(sa_types.UserDefinedType):
         return f"{self._collection_keyword}_OF({self.element_type})"
 
     def bind_processor(self, dialect):
-        # Python collection -> CUBRID literal string for raw binding
         def process(value):
             if value is None:
                 return None
             return value
         return process
+
+    @staticmethod
+    def _parse_collection_bytes(raw):
+        """Parse pycubrid's raw collection binary format.
+
+        Wire format: type(4LE) + count(4LE) + elements
+        Each element: size(1byte, includes null) + data(size bytes) + 3-byte pad
+        Last element has no trailing pad.
+        """
+        import struct
+
+        if isinstance(raw, str):
+            data = raw.encode("latin-1")
+        elif isinstance(raw, bytes):
+            data = raw
+        else:
+            return None
+
+        if len(data) < 8:
+            return None
+
+        count = struct.unpack_from("<I", data, 4)[0]
+        offset = 8
+        results = []
+        for i in range(count):
+            if offset >= len(data):
+                break
+            size = data[offset]
+            offset += 1
+            if size > 1:
+                val = data[offset:offset + size - 1].decode("utf-8", errors="replace")
+            else:
+                val = ""
+            offset += size
+            if i < count - 1:
+                offset += 3
+            results.append(val)
+        return results
 
 
 class CubridSet(_CollectionType):
@@ -54,11 +91,16 @@ class CubridSet(_CollectionType):
     _collection_keyword = "SET"
 
     def result_processor(self, dialect, coltype):
+        parse = self._parse_collection_bytes
+
         def process(value):
             if value is None:
                 return None
             if isinstance(value, set):
                 return value
+            parsed = parse(value)
+            if parsed is not None:
+                return set(parsed)
             return set(value)
         return process
 
@@ -69,11 +111,16 @@ class CubridMultiset(_CollectionType):
     _collection_keyword = "MULTISET"
 
     def result_processor(self, dialect, coltype):
+        parse = self._parse_collection_bytes
+
         def process(value):
             if value is None:
                 return None
             if isinstance(value, list):
                 return value
+            parsed = parse(value)
+            if parsed is not None:
+                return parsed
             return list(value)
         return process
 
@@ -87,10 +134,15 @@ class CubridList(_CollectionType):
     _collection_keyword = "SEQUENCE"
 
     def result_processor(self, dialect, coltype):
+        parse = self._parse_collection_bytes
+
         def process(value):
             if value is None:
                 return None
             if isinstance(value, list):
                 return value
+            parsed = parse(value)
+            if parsed is not None:
+                return parsed
             return list(value)
         return process

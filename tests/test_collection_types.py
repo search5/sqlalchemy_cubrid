@@ -76,78 +76,83 @@ class TestCollectionDDL:
 
 class TestCollectionCRUD:
     def test_set_insert_and_select(self, engine):
+        """SET via typed column returns Python set."""
+        from sqlalchemy import Table, Column, Integer, MetaData, select
+        from sqlalchemy_cubrid.types import CubridSet
+
+        meta = MetaData()
+        t = Table("t_collection", meta,
+                  Column("id", Integer, primary_key=True),
+                  Column("tags", CubridSet("VARCHAR(50)")))
         with engine.connect() as conn:
-            conn.execute(text(
-                "CREATE TABLE t_collection ("
-                "  id INT PRIMARY KEY,"
-                "  tags SET VARCHAR(50)"
-                ")"
-            ))
+            meta.create_all(conn)
             conn.execute(text(
                 "INSERT INTO t_collection VALUES (1, {'python', 'cubrid', 'sql'})"
             ))
             conn.commit()
 
-            result = conn.execute(text("SELECT tags FROM t_collection WHERE id = 1"))
-            row = result.fetchone()
-            # SET returns as Python set, elements are strings
+            row = conn.execute(select(t.c.tags).where(t.c.id == 1)).fetchone()
             assert isinstance(row[0], set)
             assert "python" in row[0]
             assert "cubrid" in row[0]
 
     def test_set_deduplicates(self, engine):
         """SET automatically removes duplicate values."""
+        from sqlalchemy import Table, Column, Integer, MetaData, select
+        from sqlalchemy_cubrid.types import CubridSet
+
+        meta = MetaData()
+        t = Table("t_collection", meta,
+                  Column("id", Integer, primary_key=True),
+                  Column("tags", CubridSet("VARCHAR(50)")))
         with engine.connect() as conn:
-            conn.execute(text(
-                "CREATE TABLE t_collection ("
-                "  id INT PRIMARY KEY,"
-                "  tags SET VARCHAR(50)"
-                ")"
-            ))
+            meta.create_all(conn)
             conn.execute(text(
                 "INSERT INTO t_collection VALUES (1, {'a', 'b', 'a', 'c', 'b'})"
             ))
             conn.commit()
 
-            result = conn.execute(text("SELECT tags FROM t_collection WHERE id = 1"))
-            row = result.fetchone()
+            row = conn.execute(select(t.c.tags).where(t.c.id == 1)).fetchone()
             assert len(row[0]) == 3
 
     def test_multiset_allows_duplicates(self, engine):
         """MULTISET allows duplicate values."""
+        from sqlalchemy import Table, Column, Integer, MetaData, select
+        from sqlalchemy_cubrid.types import CubridMultiset
+
+        meta = MetaData()
+        t = Table("t_collection", meta,
+                  Column("id", Integer, primary_key=True),
+                  Column("scores", CubridMultiset("VARCHAR(50)")))
         with engine.connect() as conn:
+            meta.create_all(conn)
+            # Use VARCHAR multiset since pycubrid doesn't parse INT collections
             conn.execute(text(
-                "CREATE TABLE t_collection ("
-                "  id INT PRIMARY KEY,"
-                "  scores MULTISET INT"
-                ")"
-            ))
-            conn.execute(text(
-                "INSERT INTO t_collection VALUES (1, {10, 20, 10, 30})"
+                "INSERT INTO t_collection VALUES (1, {'10', '20', '10', '30'})"
             ))
             conn.commit()
 
-            result = conn.execute(text("SELECT scores FROM t_collection WHERE id = 1"))
-            row = result.fetchone()
+            row = conn.execute(select(t.c.scores).where(t.c.id == 1)).fetchone()
             assert isinstance(row[0], list)
             assert len(row[0]) == 4
 
     def test_list_preserves_order(self, engine):
         """LIST preserves insertion order."""
+        from sqlalchemy import Table, Column, Integer, MetaData, select
+        from sqlalchemy_cubrid.types import CubridList
+
+        meta = MetaData()
+        t = Table("t_collection", meta,
+                  Column("id", Integer, primary_key=True),
+                  Column("elems", CubridList("VARCHAR(50)")))
         with engine.connect() as conn:
-            conn.execute(text(
-                "CREATE TABLE t_collection ("
-                "  id INT PRIMARY KEY,"
-                "  items LIST VARCHAR(50)"
-                ")"
-            ))
+            meta.create_all(conn)
             conn.execute(text(
                 "INSERT INTO t_collection VALUES (1, {'charlie', 'alice', 'bob'})"
             ))
             conn.commit()
 
-            result = conn.execute(text("SELECT items FROM t_collection WHERE id = 1"))
-            row = result.fetchone()
+            row = conn.execute(select(t.c.elems).where(t.c.id == 1)).fetchone()
             assert isinstance(row[0], list)
             assert row[0] == ["charlie", "alice", "bob"]
 

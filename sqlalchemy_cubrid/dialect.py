@@ -91,6 +91,26 @@ class CubridDialect(default.DefaultDialect):
         # CUBRID does not support RELEASE SAVEPOINT — silently skip
         pass
 
+    def is_disconnect(self, e, connection, cursor):
+        if isinstance(e, self.loaded_dbapi.InterfaceError):
+            msg = str(e).lower()
+            if "closed" in msg or "connection" in msg:
+                return True
+        if isinstance(e, self.loaded_dbapi.OperationalError):
+            msg = str(e).lower()
+            if "communication" in msg or "connection" in msg:
+                return True
+        # Check pycubrid numeric error codes
+        if hasattr(e, "args") and e.args:
+            code = e.args[0] if isinstance(e.args[0], int) else None
+            if code in (
+                -4,      # Communication error
+                -11,     # Handle is closed
+                -21003,  # Connection refused
+            ):
+                return True
+        return False
+
     def initialize(self, connection):
         super().initialize(connection)
         # Cache server version for version-conditional logic
