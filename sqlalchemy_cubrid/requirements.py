@@ -169,7 +169,7 @@ class Requirements(SuiteRequirements):
 
     @property
     def comment_reflection(self):
-        return exclusions.closed()
+        return exclusions.open()
 
     @property
     def cross_schema_fk_reflection(self):

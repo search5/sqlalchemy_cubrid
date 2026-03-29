@@ -285,6 +285,22 @@ class CubridDialect(default.DefaultDialect):
             # If it fails, the object doesn't exist.
             from sqlalchemy.exc import NoSuchTableError
             raise NoSuchTableError(table_name) from e
+
+        # Fetch column comments from db_attribute catalog
+        comment_map = {}
+        try:
+            comments = connection.execute(
+                text(
+                    "SELECT attr_name, comment FROM db_attribute "
+                    "WHERE class_name = :name ORDER BY def_order"
+                ),
+                {"name": table_name.lower()},
+            )
+            for crow in comments:
+                comment_map[crow[0]] = crow[1] if crow[1] else None
+        except Exception:
+            pass
+
         columns = []
         for row in result:
             # row: (Field, Type, Null, Key, Default, Extra)
@@ -303,6 +319,7 @@ class CubridDialect(default.DefaultDialect):
                 "nullable": nullable,
                 "default": str(default) if default is not None else None,
                 "autoincrement": autoincrement,
+                "comment": comment_map.get(col_name),
             }
             columns.append(col_info)
         return columns
@@ -482,6 +499,31 @@ class CubridDialect(default.DefaultDialect):
             return row[0]
         from sqlalchemy.exc import NoSuchTableError
         raise NoSuchTableError(view_name)
+
+    def get_check_constraints(self, connection, table_name, schema=None, **kw):
+        # CUBRID parses CHECK constraints but does not enforce or store them.
+        # No catalog table exists for CHECK constraints.
+        kw.pop("info_cache", None)
+        if not self._has_object(connection, table_name):
+            from sqlalchemy.exc import NoSuchTableError
+            raise NoSuchTableError(table_name)
+        return []
+
+    def get_table_comment(self, connection, table_name, schema=None, **kw):
+        kw.pop("info_cache", None)
+        result = connection.execute(
+            text(
+                "SELECT comment FROM db_class "
+                "WHERE class_name = :name "
+                "AND is_system_class = 'NO'"
+            ),
+            {"name": table_name.lower()},
+        )
+        row = result.fetchone()
+        if row is None:
+            from sqlalchemy.exc import NoSuchTableError
+            raise NoSuchTableError(table_name)
+        return {"text": row[0] if row[0] else None}
 
     def get_sequence_names(self, connection, schema=None, **kw):
         kw.pop("info_cache", None)

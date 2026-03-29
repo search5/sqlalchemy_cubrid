@@ -185,8 +185,53 @@ class CubridDDLCompiler(compiler.DDLCompiler):
         if not column.nullable:
             colspec += " NOT NULL"
 
+        if column.comment is not None:
+            colspec += " COMMENT " + self.sql_compiler.render_literal_value(
+                column.comment, sqltypes.String()
+            )
+
         return colspec
 
+    def post_create_table(self, table):
+        table_opts = []
+        if table.comment is not None:
+            table_opts.append(
+                "COMMENT=" + self.sql_compiler.render_literal_value(
+                    table.comment, sqltypes.String()
+                )
+            )
+        if table_opts:
+            return " " + " ".join(table_opts)
+        return ""
+
+
+    def visit_set_table_comment(self, create, **kw):
+        return "ALTER TABLE %s COMMENT=%s" % (
+            self.preparer.format_table(create.element),
+            self.sql_compiler.render_literal_value(
+                create.element.comment, sqltypes.String()
+            ),
+        )
+
+    def visit_drop_table_comment(self, drop, **kw):
+        return "ALTER TABLE %s COMMENT=''" % self.preparer.format_table(
+            drop.element
+        )
+
+    def visit_set_column_comment(self, create, **kw):
+        return "ALTER TABLE %s MODIFY %s COMMENT %s" % (
+            self.preparer.format_table(create.element.table),
+            self.preparer.format_column(create.element),
+            self.sql_compiler.render_literal_value(
+                create.element.comment, sqltypes.String()
+            ),
+        )
+
+    def visit_drop_column_comment(self, drop, **kw):
+        return "ALTER TABLE %s MODIFY %s COMMENT ''" % (
+            self.preparer.format_table(drop.element.table),
+            self.preparer.format_column(drop.element),
+        )
 
     def visit_identity_column(self, identity, **kw):
         # CUBRID has no IDENTITY; handled via AUTO_INCREMENT in
