@@ -88,10 +88,11 @@ jobs:
             -v --tb=short \
             --cov=sqlalchemy_cubrid --cov-report=xml --cov-fail-under=95
 
-      - name: Upload coverage to Codecov
+      - name: Upload coverage reports to Codecov
         if: matrix.cubrid-version == '11.4' && matrix.python-version == '3.12'
         uses: codecov/codecov-action@v5
         with:
+          token: ${{ secrets.CODECOV_TOKEN }}
           files: coverage.xml
           fail_ci_if_error: false
 
