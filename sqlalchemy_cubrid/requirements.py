@@ -11,6 +11,13 @@ from sqlalchemy.testing.requirements import SuiteRequirements
 
 
 class Requirements(SuiteRequirements):
+    """CUBRID capability declarations for the SQLAlchemy test suite.
+
+    Each property returns ``exclusions.open()`` (supported) or
+    ``exclusions.closed()`` (not supported) to inform the test runner
+    which features CUBRID provides.
+    """
+
     # -- Features CUBRID supports --
 
     @property
@@ -177,6 +184,7 @@ class Requirements(SuiteRequirements):
 
     @property
     def index_ddl_if_exists(self):
+        """CUBRID does not support IF [NOT] EXISTS for CREATE/DROP INDEX."""
         return exclusions.closed()
 
     @property
@@ -207,16 +215,17 @@ class Requirements(SuiteRequirements):
 
     @property
     def autocommit(self):
-        """CUBRID does not support programmatic isolation level changes."""
-        return exclusions.closed()
+        """CUBRID supports autocommit via pycubrid connection property."""
+        return exclusions.open()
 
     @property
     def autocommit_isolation(self):
-        return exclusions.closed()
+        return exclusions.open()
 
     @property
     def isolation_level(self):
-        return exclusions.closed()
+        """CUBRID supports READ COMMITTED, REPEATABLE READ, SERIALIZABLE."""
+        return exclusions.open()
 
     @property
     def sane_rowcount(self):

@@ -129,6 +129,18 @@ class HierarchicalSelect(Executable, ClauseElement):
         self.nocycle = nocycle
 
 
+class _Rownum(ColumnElement):
+    """ROWNUM pseudo-column.
+
+    Returns the sequential number of each row in the result set,
+    starting from 1.
+    """
+
+    __visit_name__ = "rownum"
+    inherit_cache = True
+    type = Integer()
+
+
 # -- Helper functions --
 
 def prior(column):
@@ -149,6 +161,11 @@ def connect_by_isleaf():
 def connect_by_iscycle():
     """Create a CONNECT_BY_ISCYCLE pseudo-column reference (requires NOCYCLE)."""
     return _ConnectByIsCycle()
+
+
+def rownum():
+    """Create a ROWNUM pseudo-column reference."""
+    return _Rownum()
 
 
 # Compiler visit methods are registered on CubridCompiler in compiler.py

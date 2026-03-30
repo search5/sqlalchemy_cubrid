@@ -21,7 +21,8 @@ from sqlalchemy import (
 )
 from sqlalchemy_cubrid.merge import Merge
 
-CUBRID_URL = "cubrid://dba:@localhost:33000/testdb"
+import os
+CUBRID_URL = os.environ.get("CUBRID_TEST_URL", "cubrid://dba:@localhost:33000/testdb")
 
 
 @pytest.fixture(scope="module")

@@ -20,18 +20,17 @@ from sqlalchemy.testing.provision import (
 
 @create_db.for_db("cubrid")
 def _cubrid_create_db(cfg, eng, ident):
-    # CUBRID cannot create databases via SQL.
-    # The test suite uses the pre-existing database from Docker.
+    """No-op: CUBRID databases must be created via the cubrid CLI tool."""
     pass
 
 
 @drop_db.for_db("cubrid")
 def _cubrid_drop_db(cfg, eng, ident):
-    # CUBRID cannot drop databases via SQL.
+    """No-op: CUBRID databases must be dropped via the cubrid CLI tool."""
     pass
 
 
 @temp_table_keyword_args.for_db("cubrid")
 def _cubrid_temp_table_keyword_args(cfg, eng):
-    # CUBRID does not support temporary tables
+    """Return empty dict: CUBRID does not support temporary tables."""
     return {}

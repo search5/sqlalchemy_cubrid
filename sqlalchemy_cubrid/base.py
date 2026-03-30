@@ -414,6 +414,12 @@ RESERVED_WORDS = {
 
 
 class CubridIdentifierPreparer(compiler.IdentifierPreparer):
+    """Identifier quoting for CUBRID.
+
+    Uses double-quote delimiters and the CUBRID reserved word list
+    (349 keywords covering versions 10.2 through 11.4).
+    """
+
     reserved_words = RESERVED_WORDS
 
     def __init__(
@@ -430,6 +436,11 @@ class CubridIdentifierPreparer(compiler.IdentifierPreparer):
 
 
 class CubridExecutionContext(default.DefaultExecutionContext):
+    """Execution context for CUBRID.
+
+    Handles SERIAL (sequence) pre-execution and last-row-id retrieval.
+    """
+
     def fire_sequence(self, seq, type_):
         # Pre-execute serial_name.NEXT_VALUE to get the next value
         return self._execute_scalar(
@@ -440,4 +451,10 @@ class CubridExecutionContext(default.DefaultExecutionContext):
         )
 
     def get_lastrowid(self):
-        return self.cursor.lastrowid
+        # pycubrid's cursor.lastrowid is valid for standard INSERT with
+        # AUTO_INCREMENT. For INSERT...SELECT, REPLACE INTO, and INSERT
+        # ON DUPLICATE KEY UPDATE, pycubrid may return 0 or None.
+        try:
+            return self.cursor.lastrowid
+        except AttributeError:
+            return None

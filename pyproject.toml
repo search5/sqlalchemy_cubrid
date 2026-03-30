@@ -1,7 +1,7 @@
 [tool.poetry]
 name = "sqlalchemy-cubrid"
-version = "0.1.0.dev1"
-description = "Cubrid dialect for SQLAlchemy"
+version = "1.0.0"
+description = "CUBRID dialect for SQLAlchemy 2.x — supports CUBRID 10.2 through 11.4"
 authors = [
     "Yeongseon Choe <yeongseon.choe@gmail.com>",
     "Gyeongjun Paik <paikend@gmail.com>",
@@ -9,14 +9,22 @@ authors = [
 ]
 license = "MIT"
 readme = "README.md"
-keywords = ["SQLAlchemy", "Cubrid"]
+homepage = "https://github.com/cubrid-sqlalchemy/sqlalchemy-cubrid"
+repository = "https://github.com/cubrid-sqlalchemy/sqlalchemy-cubrid"
+documentation = "https://cubrid-sqlalchemy.github.io/sqlalchemy-cubrid/"
+keywords = ["SQLAlchemy", "CUBRID", "database", "dialect", "ORM"]
 classifiers = [
     "Development Status :: 3 - Alpha",
     "Environment :: Console",
     "Intended Audience :: Developers",
     "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
     "Programming Language :: Python",
-    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Database",
+    "Topic :: Database :: Front-Ends",
 ]
 packages = [{ include = "sqlalchemy_cubrid" }]
 
@@ -27,13 +35,22 @@ pycubrid = "^0.6.0"
 
 [tool.poetry.group.dev.dependencies]
 pytest = ">=2.5.2"
+alembic = "^1.18.4"
+
+[tool.poetry.group.docs.dependencies]
+mkdocs = "^1.6"
+mkdocs-material = "^9.5"
+mkdocs-static-i18n = "^1.2"
 
 [tool.poetry.plugins."sqlalchemy.dialects"]
 cubrid = "sqlalchemy_cubrid.dialect:CubridDialect"
 
+[tool.poetry.plugins."alembic.ddl"]
+cubrid = "sqlalchemy_cubrid.alembic_impl:CubridImpl"
+
 [tool.black]
 line-length = 79
-target-version = ["py39"]
+target-version = ["py310"]
 
 [tool.pytest.ini_options]
 addopts = "--tb native -v -r fxX"

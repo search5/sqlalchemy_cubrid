@@ -74,13 +74,19 @@ class _CollectionType(sa_types.UserDefinedType):
                 break
             size = data[offset]
             offset += 1
+            is_last = (i == count - 1)
+            # Last element may lack null terminator, so only size-1 bytes.
+            available = len(data) - offset
             if size > 1:
-                val = data[offset:offset + size - 1].decode("utf-8", errors="replace")
+                read_len = min(size - 1, available)
+                val = data[offset:offset + read_len].decode(
+                    "utf-8", errors="replace"
+                )
             else:
                 val = ""
-            offset += size
-            if i < count - 1:
-                offset += 3
+            offset += min(size, available)
+            if not is_last:
+                offset += 3  # inter-element padding
             results.append(val)
         return results
 
@@ -102,7 +108,10 @@ class CubridSet(_CollectionType):
             parsed = parse(value)
             if parsed is not None:
                 return set(parsed)
-            return set(value)
+            # Fallback: convert to strings to avoid set(bytes) → {int, ...}
+            if isinstance(value, (bytes, bytearray)):
+                return set()
+            return set(str(v) for v in value)
         return process
 
 
@@ -123,7 +132,9 @@ class CubridMultiset(_CollectionType):
             parsed = parse(value)
             if parsed is not None:
                 return parsed
-            return list(value)
+            if isinstance(value, (bytes, bytearray)):
+                return []
+            return [str(v) for v in value]
         return process
 
 
@@ -147,5 +158,7 @@ class CubridList(_CollectionType):
             parsed = parse(value)
             if parsed is not None:
                 return parsed
-            return list(value)
+            if isinstance(value, (bytes, bytearray)):
+                return []
+            return [str(v) for v in value]
         return process

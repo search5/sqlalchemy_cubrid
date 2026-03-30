@@ -22,7 +22,8 @@ from sqlalchemy import (
 )
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, Session, relationship
 
-CUBRID_URL = "cubrid://dba:@localhost:33000/testdb"
+import os
+CUBRID_URL = os.environ.get("CUBRID_TEST_URL", "cubrid://dba:@localhost:33000/testdb")
 
 
 class Base(DeclarativeBase):

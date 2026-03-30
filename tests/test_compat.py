@@ -202,6 +202,72 @@ class TestSerial:
         assert insp.has_sequence("compat_serial") is False
 
 
+class TestFeatureSupport:
+    """Validate version-dependent feature support across all CUBRID versions."""
+
+    def test_cte_support(self, version_engine):
+        _, engine = version_engine
+        with engine.connect() as conn:
+            result = conn.execute(text(
+                "WITH cte AS (SELECT 1 AS n) SELECT n FROM cte"
+            ))
+            assert result.scalar() == 1
+
+    def test_window_function(self, version_engine):
+        _, engine = version_engine
+        with engine.connect() as conn:
+            conn.execute(text(
+                "CREATE TABLE t_compat (id INT PRIMARY KEY, val INT)"
+            ))
+            conn.execute(text(
+                "INSERT INTO t_compat VALUES (1, 10), (2, 20)"
+            ))
+            conn.commit()
+
+            result = conn.execute(text(
+                "SELECT id, ROW_NUMBER() OVER (ORDER BY id) AS rn "
+                "FROM t_compat"
+            ))
+            rows = result.fetchall()
+            assert len(rows) == 2
+            assert rows[0][1] == 1
+
+    def test_json_support(self, version_engine):
+        _, engine = version_engine
+        with engine.connect() as conn:
+            result = conn.execute(text(
+                "SELECT JSON_OBJECT('key', 'value')"
+            ))
+            val = result.scalar()
+            assert "key" in val
+            assert "value" in val
+
+    def test_isolation_level(self, version_engine):
+        """Validate isolation level support across versions."""
+        _, engine = version_engine
+        with engine.connect() as conn:
+            pass  # trigger initialization
+        levels = engine.dialect.get_isolation_level_values(None)
+        assert "AUTOCOMMIT" in levels
+        assert "READ COMMITTED" in levels
+        assert "REPEATABLE READ" in levels
+        assert "SERIALIZABLE" in levels
+
+    def test_dont_reuse_oid(self, version_engine):
+        """DONT_REUSE_OID is supported on 11.0+ only."""
+        version, engine = version_engine
+        with engine.connect() as conn:
+            pass  # trigger initialization
+        ver_tuple = engine.dialect.server_version_info
+        if ver_tuple >= (11, 0):
+            with engine.connect() as conn:
+                conn.execute(text(
+                    "CREATE TABLE t_compat (id INT) DONT_REUSE_OID"
+                ))
+                conn.commit()
+        # 10.2 does not support DONT_REUSE_OID — verified by version check
+
+
 class TestCRUD:
     def test_orm_insert_select(self, version_engine):
         """Basic ORM INSERT and SELECT."""

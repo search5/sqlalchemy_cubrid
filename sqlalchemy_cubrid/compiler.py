@@ -6,12 +6,20 @@
 # the MIT License: http://www.opensource.org/licenses/mit-license.php
 
 from sqlalchemy import types as sqltypes
-from sqlalchemy.sql import compiler
+from sqlalchemy.sql import compiler, coercions, roles, operators
 from sqlalchemy.sql.schema import Identity, Sequence
 from sqlalchemy.sql.selectable import _CompoundSelectKeyword
 
 
 class CubridCompiler(compiler.SQLCompiler):
+    """SQL statement compiler for CUBRID.
+
+    Handles CUBRID-specific syntax including LIMIT/OFFSET, SERIAL
+    references, hierarchical queries (CONNECT BY), REPLACE INTO,
+    FOR UPDATE, ON DUPLICATE KEY UPDATE, MERGE, and OID path
+    expressions.
+    """
+
     # Use CUBRID-native keywords for set operations (10.2~11.4 compat)
     compound_keywords = {
         _CompoundSelectKeyword.UNION: "UNION",
@@ -59,12 +67,18 @@ class CubridCompiler(compiler.SQLCompiler):
     def visit_connect_by_iscycle(self, element, **kw):
         return "CONNECT_BY_ISCYCLE"
 
+    def visit_rownum(self, element, **kw):
+        return "ROWNUM"
+
     def visit_sys_connect_by_path(self, element, **kw):
-        # Separator must be a string literal in CUBRID (not a bind param)
-        sep = element.separator.replace("'", "''")
-        return "SYS_CONNECT_BY_PATH(%s, '%s')" % (
+        # Separator must be a string literal in CUBRID (not a bind param).
+        # Use render_literal_value for proper escaping.
+        sep_literal = self.render_literal_value(
+            element.separator, sqltypes.String()
+        )
+        return "SYS_CONNECT_BY_PATH(%s, %s)" % (
             self.process(element.column, **kw),
-            sep,
+            sep_literal,
         )
 
     def visit_connect_by_root(self, element, **kw):
@@ -87,34 +101,156 @@ class CubridCompiler(compiler.SQLCompiler):
             text += " ORDER SIBLINGS BY " + ", ".join(siblings)
         return text
 
+    # -- OID dereference (path expression) --
+
+    def visit_oid_deref(self, element, **kw):
+        col_str = self.process(element.oid_column, **kw)
+        return "%s.%s" % (col_str, element.attr_name)
+
+    # -- REPLACE INTO --
+
+    def visit_insert(self, insert_stmt, **kw):
+        from sqlalchemy_cubrid.dml import Replace
+
+        text = super().visit_insert(insert_stmt, **kw)
+        if isinstance(insert_stmt, Replace):
+            text = "REPLACE" + text[len("INSERT"):]
+        return text
+
+    # -- FOR UPDATE clause --
+
+    def for_update_clause(self, select, **kw):
+        if select._for_update_arg is None:
+            return ""
+
+        if select._for_update_arg.read:
+            # CUBRID does not support FOR SHARE / LOCK IN SHARE MODE
+            return ""
+
+        tmp = " FOR UPDATE"
+
+        if select._for_update_arg.of:
+            tmp += " OF " + ", ".join(
+                self.process(col, ashint=True, use_schema=False, **kw)
+                for col in select._for_update_arg.of
+            )
+
+        return tmp
+
+    # -- ON DUPLICATE KEY UPDATE --
+
+    def visit_on_duplicate_key_update(self, on_duplicate, **kw):
+        # CUBRID does not support VALUES() function in ON DUPLICATE KEY UPDATE.
+        # Users should pass explicit values or column expressions instead of
+        # referencing stmt.inserted.
+        statement = self.current_executable
+
+        if on_duplicate._parameter_ordering:
+            parameter_ordering = [
+                coercions.expect(roles.DMLColumnRole, key)
+                for key in on_duplicate._parameter_ordering
+            ]
+            ordered_keys = set(parameter_ordering)
+            cols = [
+                statement.table.c[key]
+                for key in parameter_ordering
+                if key in statement.table.c
+            ] + [c for c in statement.table.c if c.key not in ordered_keys]
+        else:
+            cols = list(statement.table.c)
+
+        clauses = []
+        for col in cols:
+            if col.key in on_duplicate.update:
+                val = on_duplicate.update[col.key]
+                clauses.append(
+                    "%s = %s" % (
+                        self.preparer.quote(col.name),
+                        self.process(
+                            coercions.expect(roles.ExpressionElementRole, val),
+                            **kw,
+                        ),
+                    )
+                )
+
+        return "ON DUPLICATE KEY UPDATE " + ", ".join(clauses)
+
     # -- MERGE statement visit method --
 
     def visit_cubrid_merge(self, element, **kw):
         text = "MERGE INTO " + self.process(element.target, asfrom=True, **kw)
         text += " USING " + self.process(element._source, asfrom=True, **kw)
         text += " ON (" + self.process(element._on_condition, **kw) + ")"
+
+        # WHEN MATCHED THEN UPDATE
         if element._update_values:
-            text += " WHEN MATCHED THEN UPDATE SET "
+            text += " WHEN MATCHED"
+            if element._update_condition is not None:
+                text += " AND " + self.process(element._update_condition, **kw)
+            text += " THEN UPDATE SET "
             assignments = []
             for col, val in element._update_values.items():
                 assignments.append(
                     self.process(col, **kw) + " = " + self.process(val, **kw)
                 )
             text += ", ".join(assignments)
+
+        # WHEN MATCHED THEN DELETE
+        if element._delete:
+            text += " WHEN MATCHED"
+            if element._delete_condition is not None:
+                text += " AND " + self.process(element._delete_condition, **kw)
+            text += " THEN DELETE"
+
+        # WHEN NOT MATCHED THEN INSERT
         if element._insert_values:
             cols = []
             vals = []
             for col, val in element._insert_values.items():
                 cols.append(self.process(col, **kw))
                 vals.append(self.process(val, **kw))
-            text += " WHEN NOT MATCHED THEN INSERT (%s) VALUES (%s)" % (
+            text += " WHEN NOT MATCHED"
+            if element._insert_condition is not None:
+                text += " AND " + self.process(element._insert_condition, **kw)
+            text += " THEN INSERT (%s) VALUES (%s)" % (
                 ", ".join(cols),
                 ", ".join(vals),
             )
         return text
 
 
+    # -- CAST: map SQLAlchemy types to CUBRID DDL names --
+
+    def visit_cast(self, cast, **kw):
+        # Delegate type rendering to the CUBRID type compiler so that
+        # CAST(x AS TEXT) becomes CAST(x AS STRING), etc.
+        type_clause = cast.typeclause._compiler_dispatch(self, **kw)
+        return "CAST(%s AS %s)" % (
+            self.process(cast.clause, **kw),
+            type_clause,
+        )
+
+    # -- REGEXP / RLIKE operators --
+
+    def visit_regexp_match_op_binary(self, binary, operator, **kw):
+        return self._generate_generic_binary(
+            binary, " REGEXP ", **kw
+        )
+
+    def visit_not_regexp_match_op_binary(self, binary, operator, **kw):
+        return "NOT (%s)" % self.visit_regexp_match_op_binary(
+            binary, operator, **kw
+        )
+
+
 class CubridDDLCompiler(compiler.DDLCompiler):
+    """DDL compiler for CUBRID.
+
+    Generates CUBRID-specific DDL for SERIAL (sequence), index, table,
+    and column operations. Handles AUTO_INCREMENT, DONT_REUSE_OID,
+    and column/table comments.
+    """
+
     def visit_create_sequence(self, create, prefix=None, **kw):
         # CUBRID uses CREATE SERIAL (not CREATE SEQUENCE)
         seq = create.element
@@ -144,13 +280,47 @@ class CubridDDLCompiler(compiler.DDLCompiler):
             drop.element
         )
 
+    def visit_create_index(self, create, **kw):
+        index = create.element
+        text = "CREATE "
+        if index.unique:
+            text += "UNIQUE "
+
+        # CUBRID-specific: REVERSE index
+        if index.dialect_options.get("cubrid", {}).get("reverse"):
+            text += "REVERSE "
+
+        text += "INDEX "
+        text += "%s ON %s " % (
+            self._prepared_index_name(index),
+            self.preparer.format_table(index.table),
+        )
+
+        # CUBRID-specific: function-based index
+        func_expr = index.dialect_options.get("cubrid", {}).get("function")
+        if func_expr:
+            text += "(%s)" % func_expr
+        else:
+            columns = [
+                self.sql_compiler.process(
+                    col, include_table=False, literal_binds=True
+                )
+                for col in index.expressions
+            ]
+            text += "(%s)" % ", ".join(columns)
+
+        # CUBRID-specific: filtered (partial) index
+        filter_expr = index.dialect_options.get("cubrid", {}).get("filtered")
+        if filter_expr:
+            text += " WHERE %s" % filter_expr
+
+        return text
+
     def visit_drop_index(self, drop, **kw):
         # CUBRID requires: DROP INDEX index_name ON table_name
+        # Note: CUBRID does not support IF EXISTS for DROP INDEX.
         index = drop.element
-        text = "DROP INDEX "
-        if drop.if_exists:
-            text += "IF EXISTS "
-        text += "%s ON %s" % (
+        text = "DROP INDEX %s ON %s" % (
             self._prepared_index_name(index),
             self.preparer.format_table(index.table),
         )
@@ -194,6 +364,11 @@ class CubridDDLCompiler(compiler.DDLCompiler):
 
     def post_create_table(self, table):
         table_opts = []
+        # DONT_REUSE_OID makes the table referable by OID columns (11.0+)
+        if table.dialect_options.get("cubrid", {}).get("dont_reuse_oid"):
+            version = getattr(self.dialect, "_cubrid_version", (0,))
+            if version >= (11, 0):
+                table_opts.append("DONT_REUSE_OID")
         if table.comment is not None:
             table_opts.append(
                 "COMMENT=" + self.sql_compiler.render_literal_value(
@@ -241,6 +416,13 @@ class CubridDDLCompiler(compiler.DDLCompiler):
 
 
 class CubridTypeCompiler(compiler.GenericTypeCompiler):
+    """Type compiler for CUBRID.
+
+    Maps SQLAlchemy abstract types to CUBRID DDL type names. Notable
+    mappings: BOOLEAN → SMALLINT, TEXT → STRING, LargeBinary → BIT
+    VARYING, Float (no precision) → DOUBLE, NCHAR → CHAR.
+    """
+
     # CUBRID has no BOOLEAN column type (per official docs)
     def visit_BOOLEAN(self, type_, **kw):
         return "SMALLINT"
@@ -312,3 +494,7 @@ class CubridTypeCompiler(compiler.GenericTypeCompiler):
 
     def visit_unicode_text(self, type_, **kw):
         return "STRING"
+
+    # CUBRID OID reference: column type is the referenced class name
+    def visit_cubrid_oid(self, type_, **kw):
+        return type_.class_name

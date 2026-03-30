@@ -1,0 +1,63 @@
+site_name: sqlalchemy-cubrid
+site_description: CUBRID dialect for SQLAlchemy 2.x
+site_url: https://cubrid-sqlalchemy.github.io/sqlalchemy-cubrid/
+repo_url: https://github.com/cubrid-sqlalchemy/sqlalchemy-cubrid
+repo_name: sqlalchemy-cubrid
+
+theme:
+  name: material
+  palette:
+    - scheme: default
+      primary: blue
+      accent: light blue
+      toggle:
+        icon: material/brightness-7
+        name: Switch to dark mode
+    - scheme: slate
+      primary: blue
+      accent: light blue
+      toggle:
+        icon: material/brightness-4
+        name: Switch to light mode
+  features:
+    - navigation.tabs
+    - navigation.sections
+    - navigation.top
+    - content.code.copy
+
+plugins:
+  - search
+  - i18n:
+      docs_structure: folder
+      languages:
+        - locale: en
+          name: English
+          default: true
+          build: true
+        - locale: ko
+          name: 한국어
+          build: true
+
+nav:
+  - Home: index.md
+  - Getting Started: getting-started.md
+  - Connection: connection.md
+  - Type System: types.md
+  - DDL: ddl.md
+  - DML Extensions: dml.md
+  - Query Features: queries.md
+  - CUBRID Features: cubrid-features.md
+  - Introspection: introspection.md
+  - Alembic: alembic.md
+  - Limitations: limitations.md
+
+markdown_extensions:
+  - admonition
+  - pymdownx.highlight:
+      anchor_linenums: true
+  - pymdownx.superfences
+  - pymdownx.tabbed:
+      alternate_style: true
+  - tables
+  - toc:
+      permalink: true
