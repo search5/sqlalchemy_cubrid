@@ -28,13 +28,13 @@ sqlalchemy-cubrid는 Python에서 CUBRID 객체-관계형 데이터베이스에 
 ## 빠른 설치
 
 ```bash
-pip install sqlalchemy-cubrid
+pip install git+https://github.com/search5/sqlalchemy_cubrid.git
 ```
 
 또는 Poetry를 사용하는 경우:
 
 ```bash
-poetry add sqlalchemy-cubrid
+poetry add git+https://github.com/search5/sqlalchemy_cubrid.git
 ```
 
 ## 빠른 시작
@@ -66,11 +66,10 @@ with engine.connect() as conn:
 
 ## 링크
 
-- **소스 코드:** [github.com/cubrid-sqlalchemy/sqlalchemy-cubrid](https://github.com/cubrid-sqlalchemy/sqlalchemy-cubrid)
+- **소스 코드:** [github.com/search5/sqlalchemy_cubrid](https://github.com/search5/sqlalchemy_cubrid)
 - **CUBRID 문서:** [cubrid.org/manual/ko/11.4/](https://www.cubrid.org/manual/ko/11.4/)
-- **PyPI:** [pypi.org/project/sqlalchemy-cubrid/](https://pypi.org/project/sqlalchemy-cubrid/)
 - **pycubrid 드라이버:** [pypi.org/project/pycubrid/](https://pypi.org/project/pycubrid/)
 
 ## 라이선스
 
-MIT License. 자세한 내용은 [LICENSE](https://github.com/cubrid-sqlalchemy/sqlalchemy-cubrid/blob/main/LICENSE)를 참조하십시오.
+MIT License. 자세한 내용은 [LICENSE](https://github.com/search5/sqlalchemy_cubrid/blob/main/LICENSE)를 참조하십시오.

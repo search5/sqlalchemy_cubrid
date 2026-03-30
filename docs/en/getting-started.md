@@ -7,7 +7,7 @@ This guide walks you through installing sqlalchemy-cubrid, setting up a CUBRID d
 ### Using pip
 
 ```bash
-pip install sqlalchemy-cubrid
+pip install git+https://github.com/search5/sqlalchemy_cubrid.git
 ```
 
 This installs `sqlalchemy-cubrid` along with its dependencies: `sqlalchemy>=2.0` and `pycubrid>=0.6.0`.
@@ -15,14 +15,14 @@ This installs `sqlalchemy-cubrid` along with its dependencies: `sqlalchemy>=2.0`
 ### Using Poetry
 
 ```bash
-poetry add sqlalchemy-cubrid
+poetry add git+https://github.com/search5/sqlalchemy_cubrid.git
 ```
 
 ### From source
 
 ```bash
-git clone https://github.com/cubrid-sqlalchemy/sqlalchemy-cubrid.git
-cd sqlalchemy-cubrid
+git clone https://github.com/search5/sqlalchemy_cubrid.git
+cd sqlalchemy_cubrid
 poetry install
 ```
 

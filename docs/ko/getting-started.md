@@ -7,7 +7,7 @@
 ### pip 사용
 
 ```bash
-pip install sqlalchemy-cubrid
+pip install git+https://github.com/search5/sqlalchemy_cubrid.git
 ```
 
 이 명령은 `sqlalchemy-cubrid`를 의존성(`sqlalchemy>=2.0` 및 `pycubrid>=0.6.0`)과 함께 설치합니다.
@@ -15,14 +15,14 @@ pip install sqlalchemy-cubrid
 ### Poetry 사용
 
 ```bash
-poetry add sqlalchemy-cubrid
+poetry add git+https://github.com/search5/sqlalchemy_cubrid.git
 ```
 
 ### 소스에서 설치
 
 ```bash
-git clone https://github.com/cubrid-sqlalchemy/sqlalchemy-cubrid.git
-cd sqlalchemy-cubrid
+git clone https://github.com/search5/sqlalchemy_cubrid.git
+cd sqlalchemy_cubrid
 poetry install
 ```
 

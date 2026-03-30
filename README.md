@@ -8,13 +8,13 @@ Supports CUBRID 10.2, 11.0, 11.2, 11.3, and 11.4 via the
 ## Installation
 
 ```bash
-pip install sqlalchemy-cubrid
+pip install git+https://github.com/search5/sqlalchemy_cubrid.git
 ```
 
 Or with Poetry:
 
 ```bash
-poetry add sqlalchemy-cubrid
+poetry add git+https://github.com/search5/sqlalchemy_cubrid.git
 ```
 
 ## Quick Start
@@ -166,7 +166,7 @@ poetry run pytest tests/ -v
 
 ## Documentation
 
-Full documentation: [https://cubrid-sqlalchemy.github.io/sqlalchemy-cubrid/](https://cubrid-sqlalchemy.github.io/sqlalchemy-cubrid/)
+Full documentation: [https://search5.github.io/sqlalchemy_cubrid/](https://search5.github.io/sqlalchemy_cubrid/)
 
 ## License
 

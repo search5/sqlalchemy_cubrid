@@ -9,9 +9,9 @@ authors = [
 ]
 license = "MIT"
 readme = "README.md"
-homepage = "https://github.com/cubrid-sqlalchemy/sqlalchemy-cubrid"
-repository = "https://github.com/cubrid-sqlalchemy/sqlalchemy-cubrid"
-documentation = "https://cubrid-sqlalchemy.github.io/sqlalchemy-cubrid/"
+homepage = "https://github.com/search5/sqlalchemy_cubrid"
+repository = "https://github.com/search5/sqlalchemy_cubrid"
+documentation = "https://search5.github.io/sqlalchemy_cubrid/"
 keywords = ["SQLAlchemy", "CUBRID", "database", "dialect", "ORM"]
 classifiers = [
     "Development Status :: 3 - Alpha",

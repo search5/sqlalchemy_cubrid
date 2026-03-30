@@ -1,7 +1,7 @@
 site_name: sqlalchemy-cubrid
 site_description: CUBRID dialect for SQLAlchemy 2.x
-site_url: https://cubrid-sqlalchemy.github.io/sqlalchemy-cubrid/
-repo_url: https://github.com/cubrid-sqlalchemy/sqlalchemy-cubrid
+site_url: https://search5.github.io/sqlalchemy_cubrid/
+repo_url: https://github.com/search5/sqlalchemy_cubrid
 repo_name: sqlalchemy-cubrid
 
 theme:

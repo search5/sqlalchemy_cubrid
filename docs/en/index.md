@@ -28,13 +28,13 @@ sqlalchemy-cubrid is a SQLAlchemy dialect plugin that enables full access to the
 ## Quick Install
 
 ```bash
-pip install sqlalchemy-cubrid
+pip install git+https://github.com/search5/sqlalchemy_cubrid.git
 ```
 
 Or with Poetry:
 
 ```bash
-poetry add sqlalchemy-cubrid
+poetry add git+https://github.com/search5/sqlalchemy_cubrid.git
 ```
 
 ## Quick Start
@@ -66,11 +66,10 @@ with engine.connect() as conn:
 
 ## Links
 
-- **Source code:** [github.com/cubrid-sqlalchemy/sqlalchemy-cubrid](https://github.com/cubrid-sqlalchemy/sqlalchemy-cubrid)
+- **Source code:** [github.com/search5/sqlalchemy_cubrid](https://github.com/search5/sqlalchemy_cubrid)
 - **CUBRID documentation:** [cubrid.org/manual/ko/11.4/](https://www.cubrid.org/manual/ko/11.4/)
-- **PyPI:** [pypi.org/project/sqlalchemy-cubrid/](https://pypi.org/project/sqlalchemy-cubrid/)
 - **pycubrid driver:** [pypi.org/project/pycubrid/](https://pypi.org/project/pycubrid/)
 
 ## License
 
-MIT License. See [LICENSE](https://github.com/cubrid-sqlalchemy/sqlalchemy-cubrid/blob/main/LICENSE) for details.
+MIT License. See [LICENSE](https://github.com/search5/sqlalchemy_cubrid/blob/main/LICENSE) for details.
