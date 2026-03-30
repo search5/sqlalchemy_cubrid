@@ -195,14 +195,15 @@ class CubridDialect(default.DefaultDialect):
         return connect
 
     def do_ping(self, dbapi_connection):
-        cursor = dbapi_connection.cursor()
         try:
-            cursor.execute("SELECT 1 FROM db_root")
-            return True
+            cursor = dbapi_connection.cursor()
+            try:
+                cursor.execute("SELECT 1 FROM db_root")
+                return True
+            finally:
+                cursor.close()
         except self.loaded_dbapi.Error:
             return False
-        finally:
-            cursor.close()
 
     def do_release_savepoint(self, connection, name):
         # CUBRID does not support RELEASE SAVEPOINT — silently skip

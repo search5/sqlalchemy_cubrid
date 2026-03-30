@@ -36,6 +36,7 @@ pycubrid = "^0.6.0"
 [tool.poetry.group.dev.dependencies]
 pytest = ">=2.5.2"
 alembic = "^1.18.4"
+pytest-cov = "^7.1.0"
 
 [tool.poetry.group.docs.dependencies]
 mkdocs = "^1.6"
@@ -65,8 +66,37 @@ ignore = [
 known-first-party = ["sqlalchemy_cubrid"]
 
 [tool.pytest.ini_options]
-addopts = "--tb native -v -r fxX"
+addopts = "--tb native -v -r fxX --cov=sqlalchemy_cubrid --cov-report=term-missing --cov-fail-under=95"
 python_files = "tests/test_*.py"
+
+[tool.coverage.run]
+source = ["sqlalchemy_cubrid"]
+omit = [
+    "sqlalchemy_cubrid/__init__.py",
+    "sqlalchemy_cubrid/provision.py",
+    "sqlalchemy_cubrid/requirements.py",
+]
+
+[tool.coverage.report]
+exclude_lines = [
+    "pragma: no cover",
+    "if TYPE_CHECKING:",
+    "pass",
+]
+
+[tool.mypy]
+python_version = "3.10"
+strict = true
+warn_return_any = true
+warn_unused_configs = true
+disallow_untyped_defs = true
+disallow_incomplete_defs = true
+check_untyped_defs = true
+no_implicit_optional = true
+
+[[tool.mypy.overrides]]
+module = ["pycubrid.*", "CUBRIDdb.*", "alembic.*"]
+ignore_missing_imports = true
 
 [build-system]
 requires = ["poetry-core"]
