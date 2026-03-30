@@ -270,7 +270,7 @@ CREATE TABLE department (
 `manager` 컬럼은 `person` 테이블의 행에 대한 OID 참조를 저장합니다.
 
 !!! warning
-    `DONT_REUSE_OID`로 생성된 테이블만 OID 컬럼으로 참조할 수 있습니다. CUBRID 10.x부터 기본값이 `REUSE_OID`이므로 참조되는 테이블에 `DONT_REUSE_OID`를 명시적으로 설정해야 합니다.
+    `DONT_REUSE_OID`로 생성된 테이블만 OID 컬럼으로 참조할 수 있습니다. CUBRID 10.x부터 기본값이 `REUSE_OID`이므로 참조되는 테이블에 `DONT_REUSE_OID`를 명시적으로 설정해야 합니다. 단, `DONT_REUSE_OID` 키워드는 **CUBRID 11.0 이상**에서만 지원되며, 10.2에서는 사용할 수 없습니다. dialect는 11.0 미만 버전에서 자동으로 이 키워드를 생략합니다.
 
 ### CreateTableDontReuseOID
 

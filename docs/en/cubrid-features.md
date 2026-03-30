@@ -270,7 +270,7 @@ CREATE TABLE department (
 The `manager` column stores OID references to rows in the `person` table.
 
 !!! warning
-    Only tables created with `DONT_REUSE_OID` can be referenced by OID columns. Since CUBRID 10.x, the default is `REUSE_OID`, so you must explicitly set `DONT_REUSE_OID` on referenced tables.
+    Only tables created with `DONT_REUSE_OID` can be referenced by OID columns. Since CUBRID 10.x, the default is `REUSE_OID`, so you must explicitly set `DONT_REUSE_OID` on referenced tables. Note that the `DONT_REUSE_OID` keyword is only supported on **CUBRID 11.0+** — it is not available on 10.2. The dialect automatically omits it on versions below 11.0.
 
 ### CreateTableDontReuseOID
 

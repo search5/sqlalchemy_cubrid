@@ -152,14 +152,14 @@ The dialect has been tested against the SQLAlchemy standard dialect test suite w
 
 | Category | Count |
 |----------|-------|
-| Passed   | 736   |
-| Failed   | 19    |
+| Passed   | 737   |
+| Failed   | 18    |
 | Skipped  | 878   |
 | Errors   | 22    |
 
 ### Failure Categories
 
-The 19 test failures fall into these categories:
+The 18 test failures fall into these categories:
 
 #### Identifier lowercasing (8 failures)
 
@@ -199,12 +199,6 @@ CUBRID may normalize JSON whitespace on round-trip:
 CUBRID's default collation (iso-8859-1) does not support non-ASCII characters in ENUM values:
 
 - `EnumTest::test_round_trip_executemany`
-
-#### Isolation level reset (1 failure)
-
-CUBRID CCI resets isolation level on connection return to pool:
-
-- `IsolationLevelTest::test_dialect_user_setting_is_restored`
 
 ### Error Categories (22 errors)
 
