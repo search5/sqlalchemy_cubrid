@@ -98,6 +98,15 @@ no_implicit_optional = true
 module = ["pycubrid.*", "CUBRIDdb.*", "alembic.*"]
 ignore_missing_imports = true
 
+[tool.bandit]
+exclude_dirs = ["tests"]
+skips = [
+    "B101",  # assert is fine in non-test code
+    "B106",  # hardcoded_password_funcarg (default params, not real passwords)
+    "B107",  # hardcoded_password_default (same)
+    "B608",  # hardcoded_sql_expressions (internal catalog queries, not user input)
+]
+
 [build-system]
 requires = ["poetry-core"]
 build-backend = "poetry.core.masonry.api"

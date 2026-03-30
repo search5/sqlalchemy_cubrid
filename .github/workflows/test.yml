@@ -18,13 +18,16 @@ jobs:
           python-version: '3.12'
 
       - name: Install tools
-        run: pip install ruff mypy sqlalchemy-stubs
+        run: pip install ruff mypy sqlalchemy-stubs "bandit[toml]"
 
       - name: Ruff check
         run: ruff check sqlalchemy_cubrid/
 
       - name: Ruff format check
         run: ruff format --check sqlalchemy_cubrid/
+
+      - name: Bandit security check
+        run: bandit -c pyproject.toml -r sqlalchemy_cubrid/
 
   test:
     runs-on: ubuntu-latest
