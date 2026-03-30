@@ -1,0 +1,33 @@
+- name: bug
+  color: d73a4a
+  description: Something isn't working
+- name: enhancement
+  color: a2eeef
+  description: New feature or request
+- name: documentation
+  color: 0075ca
+  description: Improvements or additions to documentation
+- name: good first issue
+  color: 7057ff
+  description: Good for newcomers
+- name: help wanted
+  color: 008672
+  description: Extra attention is needed
+- name: question
+  color: d876e3
+  description: Further information is requested
+- name: stale
+  color: ffffff
+  description: Inactive issue or PR
+- name: pinned
+  color: 006b75
+  description: Exempt from stale bot
+- name: security
+  color: e11d48
+  description: Security-related issue
+- name: cubrid-compat
+  color: f9d0c4
+  description: CUBRID version compatibility
+- name: pycubrid
+  color: fbca04
+  description: Related to pycubrid driver
