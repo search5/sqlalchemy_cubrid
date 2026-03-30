@@ -28,9 +28,9 @@ Usage::
     child_ddl.create(engine)
 """
 
-from sqlalchemy import Table, Column, text
-from sqlalchemy.schema import DDLElement
+from sqlalchemy import text
 from sqlalchemy.ext.compiler import compiles
+from sqlalchemy.schema import DDLElement
 
 
 class CreateTableUnder(DDLElement):

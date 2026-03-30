@@ -84,9 +84,7 @@ class QueryTracer:
 
     def start(self):
         """Enable tracing on this connection."""
-        self._connection.execute(
-            text("SET TRACE ON OUTPUT %s" % self._output)
-        )
+        self._connection.execute(text("SET TRACE ON OUTPUT %s" % self._output))
         self._active = True
 
     def stop(self):

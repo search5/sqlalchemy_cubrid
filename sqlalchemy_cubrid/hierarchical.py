@@ -30,8 +30,8 @@ Usage::
     result = conn.execute(stmt)
 """
 
-from sqlalchemy.sql.elements import ClauseElement, ColumnElement, Executable
 from sqlalchemy import Integer, String
+from sqlalchemy.sql.elements import ClauseElement, ColumnElement, Executable
 
 
 class _Prior(ColumnElement):
@@ -142,6 +142,7 @@ class _Rownum(ColumnElement):
 
 
 # -- Helper functions --
+
 
 def prior(column):
     """Create a PRIOR expression for CONNECT BY."""

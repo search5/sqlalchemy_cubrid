@@ -48,9 +48,21 @@ cubrid = "sqlalchemy_cubrid.dialect:CubridDialect"
 [tool.poetry.plugins."alembic.ddl"]
 cubrid = "sqlalchemy_cubrid.alembic_impl:CubridImpl"
 
-[tool.black]
+[tool.ruff]
 line-length = 79
-target-version = ["py310"]
+target-version = "py310"
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "UP", "B", "SIM"]
+ignore = [
+    "E501",   # line too long (handled by formatter)
+    "SIM108", # ternary operator
+    "UP015",  # redundant open mode
+    "UP031",  # percent format (common in SQL string building)
+]
+
+[tool.ruff.lint.isort]
+known-first-party = ["sqlalchemy_cubrid"]
 
 [tool.pytest.ini_options]
 addopts = "--tb native -v -r fxX"

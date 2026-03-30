@@ -8,8 +8,6 @@
 from sqlalchemy.engine import default
 from sqlalchemy.sql import compiler
 
-
-
 # CUBRID Reserved words — union of all supported versions (10.2 ~ 11.4)
 # Source: CUBRID src/parser/keyword.c (flag=0 entries) for each version tag,
 # plus prior version keywords retained for safety (better to over-quote than
@@ -103,7 +101,7 @@ RESERVED_WORDS = {
     "day_millisecond",
     "day_minute",
     "day_second",
-    "dblink",          # reserved since 11.2
+    "dblink",  # reserved since 11.2
     "deallocate",
     "dec",
     "decimal",
@@ -312,7 +310,7 @@ RESERVED_WORDS = {
     "sequence_of",
     "serial",
     "serializable",
-    "server",           # reserved since 11.2
+    "server",  # reserved since 11.2
     "session",
     "session_user",
     "set",
@@ -444,9 +442,8 @@ class CubridExecutionContext(default.DefaultExecutionContext):
     def fire_sequence(self, seq, type_):
         # Pre-execute serial_name.NEXT_VALUE to get the next value
         return self._execute_scalar(
-            "SELECT %s.NEXT_VALUE" % (
-                self.dialect.identifier_preparer.format_sequence(seq)
-            ),
+            "SELECT %s.NEXT_VALUE"
+            % (self.dialect.identifier_preparer.format_sequence(seq)),
             type_,
         )
 

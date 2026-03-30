@@ -6,7 +6,7 @@
 # the MIT License: http://www.opensource.org/licenses/mit-license.php
 
 from sqlalchemy import types as sqltypes
-from sqlalchemy.sql import compiler, coercions, roles, operators
+from sqlalchemy.sql import coercions, compiler, roles
 from sqlalchemy.sql.schema import Identity, Sequence
 from sqlalchemy.sql.selectable import _CompoundSelectKeyword
 
@@ -37,16 +37,12 @@ class CubridCompiler(compiler.SQLCompiler):
     def limit_clause(self, select, **kw):
         text = ""
         if select._limit_clause is not None:
-            text += "\n LIMIT " + self.process(
-                select._limit_clause, **kw
-            )
+            text += "\n LIMIT " + self.process(select._limit_clause, **kw)
         if select._offset_clause is not None:
             if select._limit_clause is None:
                 # CUBRID OFFSET requires LIMIT; use large number
                 text += "\n LIMIT 9999999999"
-            text += " OFFSET " + self.process(
-                select._offset_clause, **kw
-            )
+            text += " OFFSET " + self.process(select._offset_clause, **kw)
         return text
 
     def visit_sequence(self, seq, **kw):
@@ -97,7 +93,9 @@ class CubridCompiler(compiler.SQLCompiler):
             text += "NOCYCLE "
         text += self.process(element.connect_by, **kw)
         if element.order_siblings_by:
-            siblings = [self.process(col, **kw) for col in element.order_siblings_by]
+            siblings = [
+                self.process(col, **kw) for col in element.order_siblings_by
+            ]
             text += " ORDER SIBLINGS BY " + ", ".join(siblings)
         return text
 
@@ -114,7 +112,7 @@ class CubridCompiler(compiler.SQLCompiler):
 
         text = super().visit_insert(insert_stmt, **kw)
         if isinstance(insert_stmt, Replace):
-            text = "REPLACE" + text[len("INSERT"):]
+            text = "REPLACE" + text[len("INSERT") :]
         return text
 
     # -- FOR UPDATE clause --
@@ -164,7 +162,8 @@ class CubridCompiler(compiler.SQLCompiler):
             if col.key in on_duplicate.update:
                 val = on_duplicate.update[col.key]
                 clauses.append(
-                    "%s = %s" % (
+                    "%s = %s"
+                    % (
                         self.preparer.quote(col.name),
                         self.process(
                             coercions.expect(roles.ExpressionElementRole, val),
@@ -218,7 +217,6 @@ class CubridCompiler(compiler.SQLCompiler):
             )
         return text
 
-
     # -- CAST: map SQLAlchemy types to CUBRID DDL names --
 
     def visit_cast(self, cast, **kw):
@@ -233,9 +231,7 @@ class CubridCompiler(compiler.SQLCompiler):
     # -- REGEXP / RLIKE operators --
 
     def visit_regexp_match_op_binary(self, binary, operator, **kw):
-        return self._generate_generic_binary(
-            binary, " REGEXP ", **kw
-        )
+        return self._generate_generic_binary(binary, " REGEXP ", **kw)
 
     def visit_not_regexp_match_op_binary(self, binary, operator, **kw):
         return "NOT (%s)" % self.visit_regexp_match_op_binary(
@@ -340,12 +336,17 @@ class CubridDDLCompiler(compiler.DDLCompiler):
         # Identity() is rendered as AUTO_INCREMENT (CUBRID has no IDENTITY).
         has_sequence = isinstance(column.default, Sequence)
         has_identity = isinstance(column.server_default, Identity)
-        if not has_sequence \
-                and column.primary_key and column.autoincrement is not False \
-                and column.type._type_affinity is sqltypes.Integer \
-                and (column.server_default is None or has_identity) \
-                and (column.table is None
-                     or column is column.table._autoincrement_column):
+        if (
+            not has_sequence
+            and column.primary_key
+            and column.autoincrement is not False
+            and column.type._type_affinity is sqltypes.Integer
+            and (column.server_default is None or has_identity)
+            and (
+                column.table is None
+                or column is column.table._autoincrement_column
+            )
+        ):
             colspec += " AUTO_INCREMENT"
 
         default = self.get_column_default_string(column)
@@ -371,14 +372,14 @@ class CubridDDLCompiler(compiler.DDLCompiler):
                 table_opts.append("DONT_REUSE_OID")
         if table.comment is not None:
             table_opts.append(
-                "COMMENT=" + self.sql_compiler.render_literal_value(
+                "COMMENT="
+                + self.sql_compiler.render_literal_value(
                     table.comment, sqltypes.String()
                 )
             )
         if table_opts:
             return " " + " ".join(table_opts)
         return ""
-
 
     def visit_set_table_comment(self, create, **kw):
         return "ALTER TABLE %s COMMENT=%s" % (

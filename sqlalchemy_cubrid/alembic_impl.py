@@ -13,9 +13,9 @@ during ``alembic upgrade`` / ``alembic downgrade``.
 from alembic.ddl.impl import DefaultImpl
 
 from sqlalchemy_cubrid.types import (
-    CubridSet,
-    CubridMultiset,
     CubridList,
+    CubridMultiset,
+    CubridSet,
 )
 
 _COLLECTION_CLASSES = (CubridSet, CubridMultiset, CubridList)
@@ -38,9 +38,7 @@ class CubridImpl(DefaultImpl):
             mod = "sqlalchemy_cubrid.types"
             cls_name = type(type_obj).__name__
             elem = type_obj.element_type
-            autogen_context.imports.add(
-                "from %s import %s" % (mod, cls_name)
-            )
+            autogen_context.imports.add("from %s import %s" % (mod, cls_name))
             return "%s(%r)" % (cls_name, elem)
 
         # Let Alembic handle standard types

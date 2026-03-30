@@ -43,11 +43,11 @@ Usage::
     # Compiles to: SELECT manager.name FROM department
 """
 
-from sqlalchemy import String, Column
+from sqlalchemy import String
+from sqlalchemy import types as sa_types
+from sqlalchemy.ext.compiler import compiles
 from sqlalchemy.schema import DDLElement
 from sqlalchemy.sql.elements import ColumnElement
-from sqlalchemy.ext.compiler import compiles
-from sqlalchemy import types as sa_types
 
 
 class CubridOID(sa_types.UserDefinedType):
@@ -75,6 +75,7 @@ class CubridOID(sa_types.UserDefinedType):
             if value is None:
                 return None
             return value
+
         return process
 
     def result_processor(self, dialect, coltype):
@@ -82,6 +83,7 @@ class CubridOID(sa_types.UserDefinedType):
             if value is None:
                 return None
             return value
+
         return process
 
 

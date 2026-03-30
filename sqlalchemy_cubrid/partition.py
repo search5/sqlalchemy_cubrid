@@ -34,8 +34,8 @@ Usage::
     conn.execute(ddl)
 """
 
-from sqlalchemy.schema import DDLElement
 from sqlalchemy.ext.compiler import compiles
+from sqlalchemy.schema import DDLElement
 
 
 class RangePartition:
@@ -124,7 +124,8 @@ def visit_partition_by_range(element, compiler, **kw):
     parts = []
     for p in element.partitions:
         parts.append(
-            "PARTITION %s VALUES LESS THAN (%s)" % (
+            "PARTITION %s VALUES LESS THAN (%s)"
+            % (
                 compiler.preparer.quote_identifier(p.name),
                 p.less_than,
             )
@@ -151,7 +152,8 @@ def visit_partition_by_list(element, compiler, **kw):
     for p in element.partitions:
         vals = ", ".join(str(v) for v in p.values)
         parts.append(
-            "PARTITION %s VALUES IN (%s)" % (
+            "PARTITION %s VALUES IN (%s)"
+            % (
                 compiler.preparer.quote_identifier(p.name),
                 vals,
             )

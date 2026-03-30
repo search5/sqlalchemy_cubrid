@@ -5,11 +5,11 @@
 # This module is part of sqlalchemy-cubrid and is released under
 # the MIT License: http://www.opensource.org/licenses/mit-license.php
 
-from sqlalchemy.sql import sqltypes
 from sqlalchemy import types as sa_types
+from sqlalchemy.sql import sqltypes
 
 
-class _NumericType(object):
+class _NumericType:
     """Base for CUBRID numeric types."""
 
     def __init__(self, **kw):
@@ -44,6 +44,7 @@ class _CollectionType(sa_types.UserDefinedType):
             if value is None:
                 return None
             return value
+
         return process
 
     @staticmethod
@@ -74,12 +75,12 @@ class _CollectionType(sa_types.UserDefinedType):
                 break
             size = data[offset]
             offset += 1
-            is_last = (i == count - 1)
+            is_last = i == count - 1
             # Last element may lack null terminator, so only size-1 bytes.
             available = len(data) - offset
             if size > 1:
                 read_len = min(size - 1, available)
-                val = data[offset:offset + read_len].decode(
+                val = data[offset : offset + read_len].decode(
                     "utf-8", errors="replace"
                 )
             else:
@@ -112,6 +113,7 @@ class CubridSet(_CollectionType):
             if isinstance(value, (bytes, bytearray)):
                 return set()
             return set(str(v) for v in value)
+
         return process
 
 
@@ -135,6 +137,7 @@ class CubridMultiset(_CollectionType):
             if isinstance(value, (bytes, bytearray)):
                 return []
             return [str(v) for v in value]
+
         return process
 
 
@@ -161,4 +164,5 @@ class CubridList(_CollectionType):
             if isinstance(value, (bytes, bytearray)):
                 return []
             return [str(v) for v in value]
+
         return process

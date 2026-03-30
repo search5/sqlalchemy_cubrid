@@ -8,15 +8,19 @@
 import json
 import re
 
-from sqlalchemy import text
 from sqlalchemy import exc as sa_exc
-from sqlalchemy.engine import default
-from sqlalchemy.engine import reflection
-from sqlalchemy_cubrid.base import CubridExecutionContext
-from sqlalchemy_cubrid.base import CubridIdentifierPreparer
-from sqlalchemy_cubrid.compiler import CubridCompiler
-from sqlalchemy_cubrid.compiler import CubridDDLCompiler
-from sqlalchemy_cubrid.compiler import CubridTypeCompiler
+from sqlalchemy import text
+from sqlalchemy.engine import default, reflection
+
+from sqlalchemy_cubrid.base import (
+    CubridExecutionContext,
+    CubridIdentifierPreparer,
+)
+from sqlalchemy_cubrid.compiler import (
+    CubridCompiler,
+    CubridDDLCompiler,
+    CubridTypeCompiler,
+)
 
 # CUBRID isolation level numeric codes → standard names
 _ISOLATION_LEVEL_MAP = {
@@ -149,8 +153,7 @@ class CubridDialect(default.DefaultDialect):
         # is AUTOCOMMIT or the default, but CUBRID engines may be configured
         # with other levels (e.g. SERIALIZABLE).
         target = (
-            self._on_connect_isolation_level
-            or self.default_isolation_level
+            self._on_connect_isolation_level or self.default_isolation_level
         )
         self._assert_and_set_isolation_level(dbapi_connection, target)
 
@@ -161,7 +164,10 @@ class CubridDialect(default.DefaultDialect):
             return
 
         # Restore transactional mode if switching from AUTOCOMMIT
-        if getattr(dbapi_connection, "_sa_isolation_level", None) == "AUTOCOMMIT":
+        if (
+            getattr(dbapi_connection, "_sa_isolation_level", None)
+            == "AUTOCOMMIT"
+        ):
             dbapi_connection.autocommit = False
 
         code = _ISOLATION_LEVEL_REVERSE.get(level)
@@ -172,9 +178,7 @@ class CubridDialect(default.DefaultDialect):
             )
         cursor = dbapi_connection.cursor()
         try:
-            cursor.execute(
-                "SET TRANSACTION ISOLATION LEVEL %d" % code
-            )
+            cursor.execute("SET TRANSACTION ISOLATION LEVEL %d" % code)
         finally:
             cursor.close()
         dbapi_connection._sa_isolation_level = level
@@ -187,6 +191,7 @@ class CubridDialect(default.DefaultDialect):
             dbapi_connection.autocommit = False
             # Initialize isolation level tracking
             dbapi_connection._sa_isolation_level = "READ COMMITTED"
+
         return connect
 
     def do_ping(self, dbapi_connection):
@@ -216,8 +221,8 @@ class CubridDialect(default.DefaultDialect):
         if hasattr(e, "args") and e.args:
             code = e.args[0] if isinstance(e.args[0], int) else None
             if code in (
-                -4,      # Communication error
-                -11,     # Handle is closed
+                -4,  # Communication error
+                -11,  # Handle is closed
                 -21003,  # Connection refused
             ):
                 return True
@@ -286,8 +291,11 @@ class CubridDialect(default.DefaultDialect):
                 indexes = self.get_indexes(
                     connection, table_name, schema=schema, **kw
                 )
-            except (sa_exc.ProgrammingError, sa_exc.DatabaseError,
-                    sa_exc.NoSuchTableError):
+            except (
+                sa_exc.ProgrammingError,
+                sa_exc.DatabaseError,
+                sa_exc.NoSuchTableError,
+            ):
                 indexes = []
             if info_cache is not None:
                 info_cache[cache_key] = indexes
@@ -307,7 +315,8 @@ class CubridDialect(default.DefaultDialect):
 
     # CUBRID type name -> SQLAlchemy type mapping (eagerly initialized)
     from sqlalchemy import types as _sqltypes
-    from sqlalchemy_cubrid.types import CubridSet, CubridMultiset, CubridList
+
+    from sqlalchemy_cubrid.types import CubridList, CubridMultiset, CubridSet
 
     _type_map = {
         "INTEGER": _sqltypes.INTEGER,
@@ -353,10 +362,18 @@ class CubridDialect(default.DefaultDialect):
     del _sqltypes
 
     # Collection type base names for detection
-    _COLLECTION_BASES = frozenset({
-        "SET", "SET_OF", "MULTISET", "MULTISET_OF",
-        "LIST", "LIST_OF", "SEQUENCE", "SEQUENCE_OF",
-    })
+    _COLLECTION_BASES = frozenset(
+        {
+            "SET",
+            "SET_OF",
+            "MULTISET",
+            "MULTISET_OF",
+            "LIST",
+            "LIST_OF",
+            "SEQUENCE",
+            "SEQUENCE_OF",
+        }
+    )
 
     def _resolve_type(self, type_str):
         """Convert a CUBRID type string to a SQLAlchemy type instance.
@@ -388,7 +405,13 @@ class CubridDialect(default.DefaultDialect):
             elif params and base_type in ("NUMERIC", "DECIMAL"):
                 parts = [int(x.strip()) for x in params.split(",")]
                 return type_cls(*parts)
-            elif params and base_type in ("VARCHAR", "CHARACTER VARYING", "CHAR", "CHARACTER", "STRING"):
+            elif params and base_type in (
+                "VARCHAR",
+                "CHARACTER VARYING",
+                "CHAR",
+                "CHARACTER",
+                "STRING",
+            ):
                 return type_cls(int(params))
             elif params and base_type == "ENUM":
                 values = re.findall(r"'([^']*)'", params)
@@ -408,7 +431,10 @@ class CubridDialect(default.DefaultDialect):
     def get_columns(self, connection, table_name, schema=None, **kw):
         try:
             result = connection.execute(
-                text("SHOW COLUMNS FROM " + self.identifier_preparer.quote_identifier(table_name))
+                text(
+                    "SHOW COLUMNS FROM "
+                    + self.identifier_preparer.quote_identifier(table_name)
+                )
             )
         except (sa_exc.ProgrammingError, sa_exc.DatabaseError) as e:
             raise sa_exc.NoSuchTableError(table_name) from e
@@ -455,6 +481,7 @@ class CubridDialect(default.DefaultDialect):
     def get_pk_constraint(self, connection, table_name, schema=None, **kw):
         if not self._has_object(connection, table_name):
             from sqlalchemy.exc import NoSuchTableError
+
             raise NoSuchTableError(table_name)
         result = connection.execute(
             text(
@@ -483,7 +510,10 @@ class CubridDialect(default.DefaultDialect):
         # For views, SHOW CREATE TABLE fails — return empty list.
         try:
             result = connection.execute(
-                text("SHOW CREATE TABLE " + self.identifier_preparer.quote_identifier(table_name))
+                text(
+                    "SHOW CREATE TABLE "
+                    + self.identifier_preparer.quote_identifier(table_name)
+                )
             )
         except (sa_exc.ProgrammingError, sa_exc.DatabaseError) as e:
             # SHOW CREATE TABLE fails for views — views have no foreign keys
@@ -507,9 +537,13 @@ class CubridDialect(default.DefaultDialect):
         fks = []
         for match in fk_pattern.finditer(ddl):
             fk_name = match.group(1)
-            constrained = [c.strip().strip("[]") for c in match.group(2).split(",")]
+            constrained = [
+                c.strip().strip("[]") for c in match.group(2).split(",")
+            ]
             referred_table = match.group(3)
-            referred_cols = [c.strip().strip("[]") for c in match.group(4).split(",")]
+            referred_cols = [
+                c.strip().strip("[]") for c in match.group(4).split(",")
+            ]
             on_delete = match.group(5)
             on_update = match.group(6)
 
@@ -519,21 +553,26 @@ class CubridDialect(default.DefaultDialect):
             if on_update:
                 options["onupdate"] = " ".join(on_update.upper().split())
 
-            fks.append({
-                "name": fk_name,
-                "constrained_columns": constrained,
-                "referred_schema": schema,
-                "referred_table": referred_table,
-                "referred_columns": referred_cols,
-                "options": options,
-            })
+            fks.append(
+                {
+                    "name": fk_name,
+                    "constrained_columns": constrained,
+                    "referred_schema": schema,
+                    "referred_table": referred_table,
+                    "referred_columns": referred_cols,
+                    "options": options,
+                }
+            )
         fks.sort(key=lambda x: x["name"])
         return fks
 
     @reflection.cache
-    def get_unique_constraints(self, connection, table_name, schema=None, **kw):
+    def get_unique_constraints(
+        self, connection, table_name, schema=None, **kw
+    ):
         if not self._has_object(connection, table_name):
             from sqlalchemy.exc import NoSuchTableError
+
             raise NoSuchTableError(table_name)
         result = connection.execute(
             text(
@@ -567,6 +606,7 @@ class CubridDialect(default.DefaultDialect):
     def get_indexes(self, connection, table_name, schema=None, **kw):
         if not self._has_object(connection, table_name):
             from sqlalchemy.exc import NoSuchTableError
+
             raise NoSuchTableError(table_name)
         result = connection.execute(
             text(
@@ -614,7 +654,9 @@ class CubridDialect(default.DefaultDialect):
 
             indexes[idx_name]["column_names"].append(col_name)
             if asc_desc and asc_desc.upper() != "ASC":
-                indexes[idx_name]["column_sorting"][col_name] = (asc_desc.lower(),)
+                indexes[idx_name]["column_sorting"][col_name] = (
+                    asc_desc.lower(),
+                )
 
         return list(indexes.values())
 
@@ -633,16 +675,14 @@ class CubridDialect(default.DefaultDialect):
     @reflection.cache
     def get_view_definition(self, connection, view_name, schema=None, **kw):
         result = connection.execute(
-            text(
-                "SELECT vclass_def FROM db_vclass "
-                "WHERE vclass_name = :name"
-            ),
+            text("SELECT vclass_def FROM db_vclass WHERE vclass_name = :name"),
             {"name": view_name.lower()},
         )
         row = result.fetchone()
         if row:
             return row[0]
         from sqlalchemy.exc import NoSuchTableError
+
         raise NoSuchTableError(view_name)
 
     @reflection.cache
@@ -651,6 +691,7 @@ class CubridDialect(default.DefaultDialect):
         # No catalog table exists for CHECK constraints.
         if not self._has_object(connection, table_name):
             from sqlalchemy.exc import NoSuchTableError
+
             raise NoSuchTableError(table_name)
         return []
 
@@ -667,6 +708,7 @@ class CubridDialect(default.DefaultDialect):
         row = result.fetchone()
         if row is None:
             from sqlalchemy.exc import NoSuchTableError
+
             raise NoSuchTableError(table_name)
         return {"text": row[0] if row[0] else None}
 
@@ -752,10 +794,7 @@ class CubridDialect(default.DefaultDialect):
             ),
             {"name": table_name.lower()},
         )
-        return [
-            {"name": row[0], "referenced_class": row[1]}
-            for row in result
-        ]
+        return [{"name": row[0], "referenced_class": row[1]} for row in result]
 
     def _get_server_version_info(self, connection):
         dbapi_conn = connection.connection.dbapi_connection

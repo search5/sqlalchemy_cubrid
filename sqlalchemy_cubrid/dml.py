@@ -13,14 +13,19 @@
 
 from __future__ import annotations
 
-from typing import Any, Dict, List, Mapping, Optional, Tuple, Union
+from collections.abc import Mapping
+from typing import Any
 
 from sqlalchemy import exc, util
-from sqlalchemy.schema import DDLElement
 from sqlalchemy.ext.compiler import compiles
+from sqlalchemy.schema import DDLElement
 from sqlalchemy.sql._typing import _DMLTableArgument
-from sqlalchemy.sql.base import _exclusive_against, _generative, ColumnCollection
-from sqlalchemy.sql.base import ReadOnlyColumnCollection
+from sqlalchemy.sql.base import (
+    ColumnCollection,
+    ReadOnlyColumnCollection,
+    _exclusive_against,
+    _generative,
+)
 from sqlalchemy.sql.dml import Insert as StandardInsert
 from sqlalchemy.sql.elements import ClauseElement, KeyedColumnElement
 from sqlalchemy.sql.expression import alias
@@ -30,9 +35,9 @@ from sqlalchemy.util.typing import Self
 __all__ = ("Insert", "insert", "Replace", "replace", "Truncate", "truncate")
 
 
-_UpdateArg = Union[
-    Mapping[Any, Any], List[Tuple[str, Any]], ColumnCollection[Any, Any]
-]
+_UpdateArg = (
+    Mapping[Any, Any] | list[tuple[str, Any]] | ColumnCollection[Any, Any]
+)
 
 
 def insert(table: _DMLTableArgument) -> Insert:
@@ -110,8 +115,8 @@ class OnDuplicateClause(ClauseElement):
 
     __visit_name__ = "on_duplicate_key_update"
 
-    _parameter_ordering: Optional[List[str]] = None
-    update: Dict[str, Any]
+    _parameter_ordering: list[str] | None = None
+    update: dict[str, Any]
     stringify_dialect = "cubrid"
 
     def __init__(

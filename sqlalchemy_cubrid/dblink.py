@@ -30,8 +30,8 @@ Usage::
     # Use link.as_text() to get the FROM clause string
 """
 
-from sqlalchemy.schema import DDLElement
 from sqlalchemy.ext.compiler import compiles
+from sqlalchemy.schema import DDLElement
 
 
 class CreateServer(DDLElement):
@@ -45,7 +45,9 @@ class CreateServer(DDLElement):
         )
     """
 
-    def __init__(self, name, host, port=33000, dbname="", user="dba", password=""):
+    def __init__(
+        self, name, host, port=33000, dbname="", user="dba", password=""
+    ):
         self.name = name
         self.host = host
         self.port = port
@@ -90,7 +92,10 @@ class DbLink:
         escaped_query = self.query.replace("'", "''")
         if col_defs:
             return "DBLINK(%s, '%s') AS %s(%s)" % (
-                self.server, escaped_query, alias, col_defs,
+                self.server,
+                escaped_query,
+                alias,
+                col_defs,
             )
         return "DBLINK(%s, '%s')" % (self.server, escaped_query)
 
@@ -100,7 +105,8 @@ def visit_create_server(element, compiler, **kw):
     return (
         "CREATE SERVER %s ("
         "HOST='%s', PORT=%d, DBNAME='%s', USER='%s', PASSWORD='%s'"
-        ")" % (
+        ")"
+        % (
             compiler.preparer.quote_identifier(element.name),
             element.host.replace("'", "''"),
             element.port,

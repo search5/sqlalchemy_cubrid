@@ -4,8 +4,8 @@
 # This module is part of sqlalchemy-cubrid and is released under
 # the MIT License: http://www.opensource.org/licenses/mit-license.php
 
-from sqlalchemy.sql import functions
 from sqlalchemy import Integer, String
+from sqlalchemy.sql import functions
 
 
 class incr(functions.GenericFunction):
