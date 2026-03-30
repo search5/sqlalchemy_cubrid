@@ -161,7 +161,6 @@ cython_debug/
 __pycache__
 
 # Project management (local only)
-.github/
 CLAUDE.md
 futures.md
 future2.md
