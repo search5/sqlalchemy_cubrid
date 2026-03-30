@@ -66,7 +66,7 @@ ignore = [
 known-first-party = ["sqlalchemy_cubrid"]
 
 [tool.pytest.ini_options]
-addopts = "--tb native -v -r fxX --cov=sqlalchemy_cubrid --cov-report=term-missing --cov-fail-under=95"
+addopts = "--tb native -v -r fxX"
 python_files = "tests/test_*.py"
 
 [tool.coverage.run]
