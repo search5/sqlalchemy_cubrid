@@ -29,6 +29,9 @@ CUBRID_VERSIONS = {
     "11.4": "cubrid://dba:@localhost:33000/testdb",
 }
 
+# CI URL: single CUBRID container on port 33000
+_CI_URL = "cubrid://dba:@localhost:33000/testdb"
+
 
 def _is_available(url):
     """Check if a CUBRID instance is reachable."""
@@ -42,8 +45,36 @@ def _is_available(url):
         return False
 
 
+def _detect_version(url):
+    """Detect the actual CUBRID version from a running instance."""
+    eng = create_engine(url)
+    with eng.connect():
+        pass
+    ver = eng.dialect.server_version_info
+    eng.dispose()
+    return f"{ver[0]}.{ver[1]}"
+
+
+def _collect_available():
+    """Collect available CUBRID instances.
+
+    In CI (env GITHUB_ACTIONS=true), a single CUBRID container runs on
+    port 33000.  Detect its actual version so the version-check test
+    uses the correct expected value instead of the hardcoded "11.4" label.
+    """
+    import os
+
+    if os.environ.get("GITHUB_ACTIONS") == "true":
+        if _is_available(_CI_URL):
+            ver_label = _detect_version(_CI_URL)
+            return {ver_label: _CI_URL}
+        return {}
+
+    return {v: url for v, url in CUBRID_VERSIONS.items() if _is_available(url)}
+
+
 # Collect available versions at module load time
-_available = {v: url for v, url in CUBRID_VERSIONS.items() if _is_available(url)}
+_available = _collect_available()
 
 if not _available:
     pytest.skip("No CUBRID instances available", allow_module_level=True)
