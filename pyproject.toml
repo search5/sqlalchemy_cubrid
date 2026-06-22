@@ -34,7 +34,7 @@ sqlalchemy = ">=2.0"
 pycubrid = "^0.6.0"
 
 [tool.poetry.group.dev.dependencies]
-pytest = ">=2.5.2"
+pytest = ">=9.1.1"
 alembic = "^1.18.4"
 pytest-cov = "^7.1.0"
 
