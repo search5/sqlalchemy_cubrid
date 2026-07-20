@@ -40,7 +40,7 @@ pytest-cov = "^7.1.0"
 
 [tool.poetry.group.docs.dependencies]
 mkdocs = "^1.6"
-mkdocs-material = "^9.5"
+mkdocs-material = "^9.7"
 mkdocs-static-i18n = "^1.2"
 
 [tool.poetry.plugins."sqlalchemy.dialects"]
