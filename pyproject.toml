@@ -30,7 +30,7 @@ packages = [{ include = "sqlalchemy_cubrid" }]
 
 [tool.poetry.dependencies]
 python = "^3.10"
-sqlalchemy = ">=2.0"
+sqlalchemy = ">=2.0.55"
 pycubrid = "^0.6.0"
 
 [tool.poetry.group.dev.dependencies]
